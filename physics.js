@@ -133,7 +133,7 @@ const CurlingPhysics = (() => {
     // Delivery speed mapping (weight slider 0-100 -> m/s)
     // Guard: ~1.8 m/s, Draw: ~2.5 m/s, Takeout: ~3.5 m/s, Peel: ~4.5 m/s
     function weightToSpeed(weightPercent) {
-        const minSpeed = 1.5;  // guard weight
+        const minSpeed = 1.8;  // guard weight
         const maxSpeed = 3.8;  // hard peel
         // Non-linear: more precision at draw weight range
         const t = weightPercent / 100;
