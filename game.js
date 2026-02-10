@@ -124,6 +124,7 @@
         isSweeping: false,
         deliveredStone: null,
         simSpeed: 3.0,       // simulation speed multiplier for faster gameplay
+        houseZoom: false,    // toggled by zoom button for close-up house view
     };
 
     // --------------------------------------------------------
@@ -1032,8 +1033,18 @@
     // --------------------------------------------------------
     // CAMERA
     // --------------------------------------------------------
+    // House zoom view: tight view centered on the house
+    const HOUSE_ZOOM = {
+        yMin: 35.5,  // just inside the 12-foot ring bottom
+        yMax: 41.5,  // past the back line
+    };
+
     function updateCamera() {
         if (gameState.deliveredStone && gameState.deliveredStone.moving) {
+            // Auto-exit zoom when delivering
+            gameState.houseZoom = false;
+            document.getElementById('zoom-btn').classList.remove('zoomed');
+
             const stoneY = gameState.deliveredStone.y;
             // Smoothly follow the stone
             const viewSpan = 13.5;
@@ -1043,14 +1054,18 @@
             // Clamp to not go below hack or above end
             VIEW.targetYMin = Math.max(-1, VIEW.targetYMin);
             VIEW.targetYMax = Math.min(42, VIEW.targetYMax);
+        } else if (gameState.houseZoom) {
+            // Zoomed house view
+            VIEW.targetYMin = HOUSE_ZOOM.yMin;
+            VIEW.targetYMax = HOUSE_ZOOM.yMax;
         } else {
             // Default: show the house area
             VIEW.targetYMin = 28;
             VIEW.targetYMax = 41.5;
         }
 
-        // Smooth interpolation
-        const lerp = 0.06;
+        // Smooth interpolation — faster for zoom transitions
+        const lerp = gameState.houseZoom ? 0.10 : 0.06;
         VIEW.currentYMin += (VIEW.targetYMin - VIEW.currentYMin) * lerp;
         VIEW.currentYMax += (VIEW.targetYMax - VIEW.currentYMax) * lerp;
 
@@ -1308,6 +1323,13 @@
         }
     });
 
+    document.getElementById('zoom-btn').addEventListener('click', () => {
+        if (gameState.phase === 'aiming' || gameState.phase === 'waitingNextTurn') {
+            gameState.houseZoom = !gameState.houseZoom;
+            document.getElementById('zoom-btn').classList.toggle('zoomed', gameState.houseZoom);
+        }
+    });
+
     document.getElementById('aim-slider').addEventListener('input', (e) => {
         document.getElementById('aim-value').textContent = parseFloat(e.target.value).toFixed(1) + 'Â°';
     });
@@ -1455,12 +1477,14 @@
             isSweeping: false,
             deliveredStone: null,
             simSpeed: 3.0,
+            houseZoom: false,
         };
 
         fgzSnapshots = [];
         fgzViolation = null;
         hogLineViolation = null;
 
+        document.getElementById('zoom-btn').classList.remove('zoomed');
         document.getElementById('red-total').textContent = '0';
         document.getElementById('yellow-total').textContent = '0';
         document.getElementById('current-end').textContent = '1';
