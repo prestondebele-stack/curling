@@ -599,7 +599,7 @@
     // Drawn between the far hog line and the house
     // --------------------------------------------------------
     const logoImg = new Image();
-    logoImg.src = 'logo.png';
+    logoImg.src = 'ccc-final-png_orig.png';
     let logoLoaded = false;
     logoImg.onload = () => { logoLoaded = true; };
 
