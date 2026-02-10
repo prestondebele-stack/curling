@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // CURLING GAME - Main game logic and rendering
 // ============================================================
 
@@ -50,7 +50,7 @@
             // Portrait mobile: canvas on top, UI below
             const uiPanel = document.getElementById('ui-overlay');
             canvas.width = window.innerWidth;
-            // Let flexbox handle the height — measure after layout
+            // Let flexbox handle the height â€” measure after layout
             // Use a percentage of viewport minus estimated UI height
             const uiHeight = uiPanel.offsetHeight || (window.innerHeight * 0.4);
             canvas.height = window.innerHeight - uiHeight;
@@ -156,7 +156,7 @@
     // Free Guard Zone (FGZ) violation indicator
     let fgzViolation = null; // { timer }
 
-    // FGZ snapshots — saved positions of protected stones before each throw
+    // FGZ snapshots â€” saved positions of protected stones before each throw
     let fgzSnapshots = []; // [{ stone, x, y }]
 
     // --------------------------------------------------------
@@ -453,7 +453,7 @@
 
         document.getElementById('throw-btn').disabled = false;
         document.getElementById('aim-slider').value = 0;
-        document.getElementById('aim-value').textContent = '0.0°';
+        document.getElementById('aim-value').textContent = '0.0Â°';
     }
 
     // --------------------------------------------------------
@@ -488,7 +488,7 @@
         ctx.fillStyle = iceGrad;
         ctx.fillRect(leftEdge, topEdge, rightEdge - leftEdge, bottomEdge - topEdge);
 
-        // Specular highlight — overhead arena light simulation
+        // Specular highlight â€” overhead arena light simulation
         const specGrad = ctx.createRadialGradient(
             toCanvasX(0), toCanvasY(P.farTeeLine), 0,
             toCanvasX(0), toCanvasY(P.farTeeLine), toCanvasLen(4)
@@ -595,465 +595,45 @@
     }
 
     // --------------------------------------------------------
-    // SILLY ICE LOGOS
-    // Drawn on the ice surface — visible in default house view
-    // and during delivery camera zoom-out
+    // ICE LOGO (Capital Curling Club)
+    // Drawn between the far hog line and the house
     // --------------------------------------------------------
+    const logoImg = new Image();
+    logoImg.src = 'logo.png';
+    let logoLoaded = false;
+    logoImg.onload = () => { logoLoaded = true; };
+
     function drawIceLogos() {
+        if (!logoLoaded) return;
+
         ctx.save();
-        ctx.globalAlpha = 0.35; // painted-on-ice look
+        ctx.globalAlpha = 0.45; // painted-on-ice look
 
-        // === LOGOS VISIBLE IN DEFAULT HOUSE VIEW (y ≈ 28–41.5) ===
-        // The house (rings) is centered at y=38.41, so we place logos
-        // in the open ice between hog line (y=32) and the house edge,
-        // and on the sides outside the 12-foot ring (radius 1.83m)
+        // Place the logo centered between the far hog line and the front of the house
+        const logoTopY = P.farHogLine + 0.3;
+        const logoBottomY = P.farTeeLine - HOUSE.twelveFoot - 0.3;
+        const logoMidY = (logoTopY + logoBottomY) / 2;
+        const logoHeight = logoBottomY - logoTopY;
 
-        // ---------- Rubber Duck (left of house, visible in default view) ----------
-        drawRubberDuck(toCanvasX(-1.8), toCanvasY(29.5), toCanvasLen(1.5));
+        // Maintain aspect ratio of the logo image
+        const aspect = logoImg.width / logoImg.height;
+        const drawH = toCanvasLen(logoHeight);
+        const drawW = drawH * aspect;
 
-        // ---------- Pizza Slice (right of house, visible in default view) ----------
-        drawPizzaSlice(toCanvasX(1.8), toCanvasY(30.0), toCanvasLen(1.4));
+        // Clamp width to sheet width minus margins
+        const maxW = toCanvasLen(CurlingPhysics.SHEET.width * 0.85);
+        const finalW = Math.min(drawW, maxW);
+        const finalH = finalW / aspect;
 
-        // ---------- Maple Leaf (center, just below hog line) ----------
-        drawMapleLeaf(toCanvasX(0), toCanvasY(30.0), toCanvasLen(1.6));
+        const cx = toCanvasX(0);
+        const cy = toCanvasY(logoMidY);
 
-        // ---------- Snowflake (left side, below back line) ----------
-        drawSnowflake(toCanvasX(-1.8), toCanvasY(40.5), toCanvasLen(1.0));
-
-        // ---------- Donut (right side, below back line) ----------
-        drawDonut(toCanvasX(1.8), toCanvasY(40.5), toCanvasLen(1.0));
-
-        // === LOGOS VISIBLE DURING DELIVERY (full sheet y ≈ -1 to 42) ===
-
-        // ---------- Smiley Face (center, mid-sheet) ----------
-        drawSmileyFace(toCanvasX(0), toCanvasY(20), toCanvasLen(2.0));
-
-        // ---------- Moose (right, between hog lines) ----------
-        drawMoose(toCanvasX(1.3), toCanvasY(15), toCanvasLen(2.2));
-
-        // ---------- Rocket (left side, near delivery end) ----------
-        drawRocket(toCanvasX(-1.4), toCanvasY(5), toCanvasLen(2.0));
+        ctx.drawImage(logoImg, cx - finalW / 2, cy - finalH / 2, finalW, finalH);
 
         ctx.globalAlpha = 1.0;
         ctx.restore();
     }
 
-    function drawRubberDuck(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Body (big yellow oval)
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath();
-        ctx.ellipse(0, s * 0.1, s * 0.7, s * 0.55, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Head (smaller circle, upper left)
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath();
-        ctx.arc(-s * 0.3, -s * 0.35, s * 0.35, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Beak
-        ctx.fillStyle = '#ff8f00';
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.65, -s * 0.4);
-        ctx.lineTo(-s * 0.85, -s * 0.3);
-        ctx.lineTo(-s * 0.6, -s * 0.25);
-        ctx.closePath();
-        ctx.fill();
-
-        // Eye
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(-s * 0.38, -s * 0.42, s * 0.06, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Wing
-        ctx.fillStyle = '#f9c800';
-        ctx.beginPath();
-        ctx.ellipse(s * 0.15, s * 0.0, s * 0.3, s * 0.2, -0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-    function drawPizzaSlice(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Slice shape (triangle with rounded crust)
-        ctx.fillStyle = '#e8a435';
-        ctx.beginPath();
-        ctx.moveTo(0, s * 0.7);
-        ctx.lineTo(-s * 0.55, -s * 0.5);
-        ctx.quadraticCurveTo(0, -s * 0.7, s * 0.55, -s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-
-        // Crust
-        ctx.strokeStyle = '#c07820';
-        ctx.lineWidth = toCanvasLen(0.08);
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.55, -s * 0.5);
-        ctx.quadraticCurveTo(0, -s * 0.7, s * 0.55, -s * 0.5);
-        ctx.stroke();
-
-        // Pepperoni
-        ctx.fillStyle = '#c0392b';
-        const pepperoni = [
-            [0, -s * 0.2, s * 0.1],
-            [-s * 0.18, s * 0.15, s * 0.08],
-            [s * 0.15, s * 0.05, s * 0.09],
-            [-s * 0.05, -s * 0.4, s * 0.07],
-            [s * 0.1, -s * 0.3, s * 0.07],
-        ];
-        for (const [px, py, pr] of pepperoni) {
-            ctx.beginPath();
-            ctx.arc(px, py, pr, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        ctx.restore();
-    }
-
-    function drawSmileyFace(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Face
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Eyes
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(-s * 0.28, -s * 0.2, s * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s * 0.28, -s * 0.2, s * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Smile
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = toCanvasLen(0.06);
-        ctx.beginPath();
-        ctx.arc(0, s * 0.05, s * 0.4, 0.2, Math.PI - 0.2);
-        ctx.stroke();
-
-        // Rosy cheeks
-        ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
-        ctx.beginPath();
-        ctx.arc(-s * 0.45, s * 0.1, s * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(s * 0.45, s * 0.1, s * 0.12, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-    function drawMapleLeaf(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        ctx.fillStyle = '#c0392b';
-        ctx.beginPath();
-        // Simplified maple leaf shape
-        ctx.moveTo(0, -s * 0.8);
-        ctx.lineTo(s * 0.12, -s * 0.45);
-        ctx.lineTo(s * 0.55, -s * 0.55);
-        ctx.lineTo(s * 0.35, -s * 0.25);
-        ctx.lineTo(s * 0.75, -s * 0.15);
-        ctx.lineTo(s * 0.4, s * 0.05);
-        ctx.lineTo(s * 0.5, s * 0.45);
-        ctx.lineTo(s * 0.15, s * 0.3);
-        ctx.lineTo(0, s * 0.7);
-        ctx.lineTo(-s * 0.15, s * 0.3);
-        ctx.lineTo(-s * 0.5, s * 0.45);
-        ctx.lineTo(-s * 0.4, s * 0.05);
-        ctx.lineTo(-s * 0.75, -s * 0.15);
-        ctx.lineTo(-s * 0.35, -s * 0.25);
-        ctx.lineTo(-s * 0.55, -s * 0.55);
-        ctx.lineTo(-s * 0.12, -s * 0.45);
-        ctx.closePath();
-        ctx.fill();
-
-        // Stem
-        ctx.strokeStyle = '#8b3a2a';
-        ctx.lineWidth = toCanvasLen(0.05);
-        ctx.beginPath();
-        ctx.moveTo(0, s * 0.45);
-        ctx.lineTo(0, s * 0.85);
-        ctx.stroke();
-
-        ctx.restore();
-    }
-
-    function drawMoose(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Body
-        ctx.fillStyle = '#6d4c2a';
-        ctx.beginPath();
-        ctx.ellipse(0, s * 0.1, s * 0.55, s * 0.3, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Head
-        ctx.fillStyle = '#7a5630';
-        ctx.beginPath();
-        ctx.ellipse(-s * 0.5, -s * 0.25, s * 0.22, s * 0.18, -0.2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Snout
-        ctx.fillStyle = '#8a6540';
-        ctx.beginPath();
-        ctx.ellipse(-s * 0.72, -s * 0.2, s * 0.12, s * 0.09, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Antlers
-        ctx.strokeStyle = '#5a3e20';
-        ctx.lineWidth = toCanvasLen(0.05);
-        ctx.lineCap = 'round';
-        // Left antler
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.4, -s * 0.4);
-        ctx.lineTo(-s * 0.3, -s * 0.7);
-        ctx.lineTo(-s * 0.15, -s * 0.6);
-        ctx.moveTo(-s * 0.3, -s * 0.7);
-        ctx.lineTo(-s * 0.45, -s * 0.75);
-        ctx.stroke();
-        // Right antler
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.55, -s * 0.42);
-        ctx.lineTo(-s * 0.65, -s * 0.7);
-        ctx.lineTo(-s * 0.8, -s * 0.6);
-        ctx.moveTo(-s * 0.65, -s * 0.7);
-        ctx.lineTo(-s * 0.55, -s * 0.78);
-        ctx.stroke();
-        ctx.lineCap = 'butt';
-
-        // Eye
-        ctx.fillStyle = '#222';
-        ctx.beginPath();
-        ctx.arc(-s * 0.45, -s * 0.3, s * 0.04, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Legs
-        ctx.strokeStyle = '#5a3e20';
-        ctx.lineWidth = toCanvasLen(0.06);
-        const legs = [
-            [-s * 0.3, s * 0.35, -s * 0.32, s * 0.7],
-            [-s * 0.1, s * 0.35, -s * 0.08, s * 0.7],
-            [s * 0.15, s * 0.35, s * 0.17, s * 0.7],
-            [s * 0.35, s * 0.35, s * 0.37, s * 0.7],
-        ];
-        for (const [x1, y1, x2, y2] of legs) {
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-        }
-
-        // Tail (small stub)
-        ctx.fillStyle = '#5a3e20';
-        ctx.beginPath();
-        ctx.ellipse(s * 0.55, s * 0.0, s * 0.08, s * 0.05, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-    function drawDonut(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Donut body
-        ctx.fillStyle = '#d4903c';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.7, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Frosting (pink icing on top half)
-        ctx.fillStyle = '#e84393';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.72, Math.PI, Math.PI * 2);
-        // Drippy edge
-        ctx.quadraticCurveTo(s * 0.72, s * 0.15, s * 0.55, s * 0.2);
-        ctx.quadraticCurveTo(s * 0.4, s * 0.35, s * 0.2, s * 0.15);
-        ctx.quadraticCurveTo(0, s * 0.3, -s * 0.2, s * 0.18);
-        ctx.quadraticCurveTo(-s * 0.4, s * 0.35, -s * 0.55, s * 0.15);
-        ctx.quadraticCurveTo(-s * 0.72, s * 0.1, -s * 0.72, 0);
-        ctx.closePath();
-        ctx.fill();
-
-        // Donut hole
-        ctx.fillStyle = ICE_COLOR;
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.25, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Sprinkles
-        const sprinkleColors = ['#fdd835', '#4caf50', '#2196f3', '#ff5722', '#9c27b0'];
-        for (let i = 0; i < 12; i++) {
-            const angle = (i / 12) * Math.PI * 2;
-            const r = s * (0.4 + (i % 3) * 0.08);
-            const sx = Math.cos(angle) * r;
-            const sy = Math.sin(angle) * r;
-            const sAngle = angle + 0.5;
-            ctx.fillStyle = sprinkleColors[i % sprinkleColors.length];
-            ctx.save();
-            ctx.translate(sx, sy);
-            ctx.rotate(sAngle);
-            ctx.fillRect(-s * 0.04, -s * 0.015, s * 0.08, s * 0.03);
-            ctx.restore();
-        }
-
-        ctx.restore();
-    }
-
-    function drawSnowflake(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        ctx.strokeStyle = '#64b5f6';
-        ctx.lineWidth = toCanvasLen(0.04);
-        ctx.lineCap = 'round';
-
-        // 6 main arms
-        for (let i = 0; i < 6; i++) {
-            const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
-            ctx.save();
-            ctx.rotate(angle);
-
-            // Main arm
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, -s * 0.75);
-            ctx.stroke();
-
-            // Side branches
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.35);
-            ctx.lineTo(s * 0.2, -s * 0.55);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.35);
-            ctx.lineTo(-s * 0.2, -s * 0.55);
-            ctx.stroke();
-
-            // Small branches near tip
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.55);
-            ctx.lineTo(s * 0.12, -s * 0.68);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.55);
-            ctx.lineTo(-s * 0.12, -s * 0.68);
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        // Center dot
-        ctx.fillStyle = '#90caf9';
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.06, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.lineCap = 'butt';
-        ctx.restore();
-    }
-
-    function drawRocket(cx, cy, size) {
-        const s = size / 2;
-        ctx.save();
-        ctx.translate(cx, cy);
-
-        // Flame
-        ctx.fillStyle = '#ff6f00';
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.15, s * 0.5);
-        ctx.quadraticCurveTo(-s * 0.2, s * 0.85, 0, s * 0.9);
-        ctx.quadraticCurveTo(s * 0.2, s * 0.85, s * 0.15, s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-
-        // Inner flame
-        ctx.fillStyle = '#fdd835';
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.08, s * 0.5);
-        ctx.quadraticCurveTo(-s * 0.1, s * 0.72, 0, s * 0.75);
-        ctx.quadraticCurveTo(s * 0.1, s * 0.72, s * 0.08, s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-
-        // Rocket body
-        ctx.fillStyle = '#eceff1';
-        ctx.beginPath();
-        ctx.moveTo(0, -s * 0.8);
-        ctx.quadraticCurveTo(s * 0.25, -s * 0.5, s * 0.22, s * 0.0);
-        ctx.lineTo(s * 0.22, s * 0.5);
-        ctx.lineTo(-s * 0.22, s * 0.5);
-        ctx.lineTo(-s * 0.22, s * 0.0);
-        ctx.quadraticCurveTo(-s * 0.25, -s * 0.5, 0, -s * 0.8);
-        ctx.closePath();
-        ctx.fill();
-
-        // Nose cone
-        ctx.fillStyle = '#e53935';
-        ctx.beginPath();
-        ctx.moveTo(0, -s * 0.8);
-        ctx.quadraticCurveTo(s * 0.15, -s * 0.55, s * 0.18, -s * 0.35);
-        ctx.lineTo(-s * 0.18, -s * 0.35);
-        ctx.quadraticCurveTo(-s * 0.15, -s * 0.55, 0, -s * 0.8);
-        ctx.closePath();
-        ctx.fill();
-
-        // Window
-        ctx.fillStyle = '#42a5f5';
-        ctx.beginPath();
-        ctx.arc(0, -s * 0.1, s * 0.1, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#90a4ae';
-        ctx.lineWidth = toCanvasLen(0.02);
-        ctx.stroke();
-
-        // Window shine
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.beginPath();
-        ctx.arc(-s * 0.03, -s * 0.13, s * 0.03, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Fins
-        ctx.fillStyle = '#e53935';
-        // Left fin
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.22, s * 0.25);
-        ctx.lineTo(-s * 0.42, s * 0.55);
-        ctx.lineTo(-s * 0.22, s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-        // Right fin
-        ctx.beginPath();
-        ctx.moveTo(s * 0.22, s * 0.25);
-        ctx.lineTo(s * 0.42, s * 0.55);
-        ctx.lineTo(s * 0.22, s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.restore();
-    }
 
     function drawHouse() {
         const cx = toCanvasX(0);
@@ -1343,7 +923,7 @@
         const startY = P.hack + 1.0;
 
         // Draw a dark dashed line showing the aim direction
-        const lineLen = 45; // meters — extends past the house
+        const lineLen = 45; // meters â€” extends past the house
         const endX = startX + lineLen * Math.sin(aimRad);
         const endY = startY + lineLen * Math.cos(aimRad);
 
@@ -1628,7 +1208,7 @@
         ctx.restore();
     }
 
-    // FGZ violation indicator — centered on screen
+    // FGZ violation indicator â€” centered on screen
     function drawFGZViolation() {
         if (!fgzViolation) return;
         const alpha = Math.min(1, fgzViolation.timer / 400);
@@ -1663,7 +1243,7 @@
         ctx.restore();
     }
 
-    // Vignette overlay — darkens edges for cinematic focus
+    // Vignette overlay â€” darkens edges for cinematic focus
     function drawVignette() {
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
@@ -1702,7 +1282,7 @@
                 deactivateStone(stone, true);
             }
 
-            // Side wall — stone touching the boards is out of play (instant removal)
+            // Side wall â€” stone touching the boards is out of play (instant removal)
             if (Math.abs(stone.x) > halfW - STONE_R) {
                 deactivateStone(stone, true);
             }
@@ -1729,7 +1309,7 @@
     });
 
     document.getElementById('aim-slider').addEventListener('input', (e) => {
-        document.getElementById('aim-value').textContent = parseFloat(e.target.value).toFixed(1) + '°';
+        document.getElementById('aim-value').textContent = parseFloat(e.target.value).toFixed(1) + 'Â°';
     });
 
     document.getElementById('weight-slider').addEventListener('input', (e) => {
