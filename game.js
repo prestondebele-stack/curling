@@ -1162,7 +1162,7 @@
         const mobile = isMobile();
         const pipMargin = mobile ? 6 : 12;
         const pipW = mobile
-            ? Math.min(140, canvas.width * 0.35)
+            ? Math.min(100, canvas.width * 0.25)
             : Math.min(280, canvas.width * 0.28);
         // House is roughly square (width:height ≈ sheet width : house diameter*2+margin)
         const houseViewWidth = CurlingPhysics.SHEET.width;  // 4.75m
@@ -1299,9 +1299,9 @@
             const endX = startX + lineLen * Math.sin(aimRad);
             const endY = startY + lineLen * Math.cos(aimRad);
 
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 3]);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
             ctx.beginPath();
             ctx.moveTo(toPipX(startX), toPipY(startY));
             ctx.lineTo(toPipX(endX), toPipY(endY));
