@@ -2,50 +2,59 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
     background: #1a1a2e;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
+    touch-action: manipulation;
 }
 
+/* ================================================
+   DESKTOP LAYOUT: canvas left, UI panel right
+   ================================================ */
 #game-container {
     position: relative;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     display: flex;
+    flex-direction: row;
 }
 
 #curling-canvas {
     display: block;
     flex: 1;
+    min-width: 0;
 }
 
 #ui-overlay {
-    position: absolute;
-    top: 0;
-    right: 0;
     width: 300px;
+    min-width: 300px;
     height: 100%;
-    background: rgba(10, 10, 30, 0.92);
+    background: rgba(10, 10, 30, 0.95);
     display: flex;
     flex-direction: column;
     padding: 12px;
     gap: 10px;
     overflow-y: auto;
     border-left: 2px solid #333;
+    z-index: 10;
 }
 
+/* ================================================
+   SCOREBOARD
+   ================================================ */
 #scoreboard {
     display: flex;
     align-items: center;
     justify-content: space-between;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
-    padding: 10px;
+    padding: 8px 10px;
 }
 
 .team-score {
@@ -55,25 +64,37 @@ body {
 }
 
 .team-dot {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
 }
 
 .red-dot { background: #e53935; }
 .yellow-dot { background: #fdd835; }
 
+.hammer-icon {
+    font-size: 18px;
+    line-height: 1;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+    animation: hammerGlow 2s ease-in-out infinite;
+}
+
+@keyframes hammerGlow {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(255,200,0,0.3)); }
+    50% { filter: drop-shadow(0 0 6px rgba(255,200,0,0.7)); }
+}
+
 .team-name {
     color: #ccc;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
 }
 
 .score-value {
     color: #fff;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 700;
-    min-width: 30px;
+    min-width: 26px;
     text-align: center;
 }
 
@@ -82,51 +103,70 @@ body {
     flex-direction: column;
     align-items: center;
     color: #888;
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: 11px;
+    line-height: 1.2;
 }
 
 #end-display #current-end {
     color: #fff;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 700;
 }
 
+/* ================================================
+   SHOT INFO
+   ================================================ */
 #shot-info {
     text-align: center;
-    padding: 8px;
+    padding: 6px 8px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 8px;
 }
 
 #current-team-label {
     display: block;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: #e53935;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 #stones-remaining {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     color: #999;
 }
 
+/* ================================================
+   CONTROLS PANEL
+   ================================================ */
 #controls-panel {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 10px;
+    gap: 8px;
+    padding: 8px;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 8px;
 }
 
+.control-row {
+    /* single row control */
+}
+
+.control-row.two-col {
+    display: flex;
+    gap: 10px;
+}
+
+.control-row.two-col > div {
+    flex: 1;
+}
+
 #controls-panel label {
     color: #bbb;
-    font-size: 13px;
+    font-size: 12px;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 #controls-panel label span {
@@ -134,34 +174,41 @@ body {
     font-weight: 600;
 }
 
+/* ================================================
+   SLIDERS
+   ================================================ */
 input[type="range"] {
     width: 100%;
-    height: 6px;
+    height: 8px;
     -webkit-appearance: none;
     appearance: none;
     background: #333;
-    border-radius: 3px;
+    border-radius: 4px;
     outline: none;
+    margin: 2px 0;
 }
 
 input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     background: #5c9ae6;
     border-radius: 50%;
     cursor: pointer;
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     background: #5c9ae6;
     border-radius: 50%;
     cursor: pointer;
     border: none;
 }
 
+/* ================================================
+   BUTTONS
+   ================================================ */
 #spin-buttons, #sweep-buttons {
     display: flex;
     gap: 6px;
@@ -169,14 +216,16 @@ input[type="range"]::-moz-range-thumb {
 
 .spin-btn, .sweep-btn {
     flex: 1;
-    padding: 6px 8px;
+    padding: 8px 6px;
     font-size: 13px;
+    font-weight: 600;
     border: 1px solid #444;
     background: #222;
     color: #aaa;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
+    user-select: none;
 }
 
 .spin-btn:hover, .sweep-btn:hover {
@@ -190,22 +239,32 @@ input[type="range"]::-moz-range-thumb {
     border-color: #5c9ae6;
 }
 
+.action-row {
+    display: flex;
+    gap: 8px;
+}
+
 #throw-btn {
-    padding: 12px;
+    flex: 1;
+    padding: 14px;
     font-size: 18px;
     font-weight: 700;
     background: linear-gradient(135deg, #2e7d32, #43a047);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s;
     letter-spacing: 1px;
+    user-select: none;
 }
 
 #throw-btn:hover {
     background: linear-gradient(135deg, #388e3c, #4caf50);
-    transform: scale(1.02);
+}
+
+#throw-btn:active {
+    transform: scale(0.97);
 }
 
 #throw-btn:disabled {
@@ -215,20 +274,23 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #sweep-toggle-btn {
-    padding: 10px;
-    font-size: 14px;
-    font-weight: 600;
+    flex: 1;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
     background: linear-gradient(135deg, #1565c0, #1e88e5);
     color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     animation: pulse 1.5s infinite;
+    user-select: none;
+    letter-spacing: 1px;
 }
 
 @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+    50% { opacity: 0.6; }
 }
 
 #sweep-toggle-btn.sweeping {
@@ -236,28 +298,35 @@ input[type="range"]::-moz-range-thumb {
     animation: none;
 }
 
+/* ================================================
+   INSTRUCTIONS
+   ================================================ */
 #instructions {
     margin-top: auto;
-    padding: 10px;
+    padding: 8px;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 8px;
-    color: #777;
-    font-size: 12px;
-    line-height: 1.5;
+    color: #666;
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 #instructions kbd {
     background: #333;
-    padding: 1px 5px;
+    padding: 1px 4px;
     border-radius: 3px;
     border: 1px solid #555;
     color: #ccc;
+    font-size: 10px;
 }
 
 #instructions p {
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
+/* ================================================
+   GAME OVER
+   ================================================ */
 #game-over-screen {
     position: absolute;
     top: 0;
@@ -270,25 +339,26 @@ input[type="range"]::-moz-range-thumb {
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 20px;
 }
 
 #game-over-screen h1 {
     color: #fff;
-    font-size: 48px;
-    margin-bottom: 20px;
+    font-size: 36px;
+    margin-bottom: 16px;
 }
 
 #final-scores {
     color: #ccc;
-    font-size: 24px;
-    margin-bottom: 30px;
+    font-size: 20px;
+    margin-bottom: 24px;
     text-align: center;
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
 #new-game-btn {
-    padding: 15px 40px;
-    font-size: 20px;
+    padding: 14px 36px;
+    font-size: 18px;
     font-weight: 700;
     background: linear-gradient(135deg, #2e7d32, #43a047);
     color: white;
@@ -298,24 +368,229 @@ input[type="range"]::-moz-range-thumb {
     transition: all 0.2s;
 }
 
-#new-game-btn:hover {
-    background: linear-gradient(135deg, #388e3c, #4caf50);
-    transform: scale(1.05);
+#new-game-btn:active {
+    transform: scale(0.96);
 }
 
-/* Stone indicators along the side */
-.stone-indicator {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin: 0 2px;
-    opacity: 0.3;
+/* ================================================
+   MOBILE LAYOUT (portrait)
+   Canvas on top, controls below
+   ================================================ */
+@media (max-width: 768px) {
+    #game-container {
+        flex-direction: column;
+    }
+
+    #curling-canvas {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+    }
+
+    #ui-overlay {
+        width: 100%;
+        min-width: unset;
+        height: auto;
+        max-height: 45vh;
+        border-left: none;
+        border-top: 2px solid #333;
+        padding: 8px 10px;
+        gap: 6px;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Compact scoreboard */
+    #scoreboard {
+        padding: 6px 10px;
+    }
+
+    .team-dot {
+        width: 12px;
+        height: 12px;
+    }
+
+    .team-name {
+        font-size: 12px;
+    }
+
+    .score-value {
+        font-size: 20px;
+    }
+
+    #end-display {
+        font-size: 10px;
+    }
+
+    #end-display #current-end {
+        font-size: 17px;
+    }
+
+    /* Compact shot info */
+    #shot-info {
+        padding: 4px 8px;
+    }
+
+    #current-team-label {
+        font-size: 14px;
+    }
+
+    #stones-remaining {
+        font-size: 11px;
+    }
+
+    /* Compact controls */
+    #controls-panel {
+        gap: 6px;
+        padding: 6px;
+    }
+
+    #controls-panel label {
+        font-size: 11px;
+        margin-bottom: 2px;
+    }
+
+    /* Larger touch targets for sliders */
+    input[type="range"] {
+        height: 10px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 28px;
+        height: 28px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* Larger touch targets for buttons */
+    .spin-btn, .sweep-btn {
+        padding: 10px 6px;
+        font-size: 14px;
+        border-radius: 8px;
+        min-height: 40px;
+    }
+
+    /* Big throw/sweep buttons */
+    #throw-btn {
+        padding: 16px;
+        font-size: 20px;
+        border-radius: 10px;
+        min-height: 52px;
+    }
+
+    #sweep-toggle-btn {
+        padding: 16px;
+        font-size: 18px;
+        border-radius: 10px;
+        min-height: 52px;
+    }
+
+    /* Hide keyboard instructions on mobile */
+    #instructions {
+        display: none;
+    }
 }
 
-.stone-indicator.thrown {
-    opacity: 1;
+/* Extra small phones */
+@media (max-width: 400px) {
+    #ui-overlay {
+        padding: 6px 8px;
+        gap: 4px;
+        max-height: 50vh;
+    }
+
+    #scoreboard {
+        padding: 4px 8px;
+    }
+
+    .team-name {
+        font-size: 11px;
+    }
+
+    .score-value {
+        font-size: 18px;
+    }
+
+    #controls-panel {
+        gap: 4px;
+        padding: 4px;
+    }
+
+    .control-row.two-col {
+        flex-direction: column;
+        gap: 4px;
+    }
 }
 
-.stone-indicator.red { background: #e53935; }
-.stone-indicator.yellow { background: #fdd835; }
+/* Landscape mobile */
+@media (max-height: 500px) and (max-width: 900px) {
+    #game-container {
+        flex-direction: row;
+    }
+
+    #ui-overlay {
+        width: 260px;
+        min-width: 260px;
+        height: 100%;
+        max-height: 100%;
+        border-left: 2px solid #333;
+        border-top: none;
+        padding: 6px 8px;
+        gap: 4px;
+    }
+
+    #scoreboard {
+        padding: 4px 8px;
+    }
+
+    .score-value {
+        font-size: 18px;
+    }
+
+    #shot-info {
+        padding: 3px 6px;
+    }
+
+    #current-team-label {
+        font-size: 13px;
+    }
+
+    #controls-panel {
+        gap: 4px;
+        padding: 4px;
+    }
+
+    #controls-panel label {
+        font-size: 10px;
+        margin-bottom: 1px;
+    }
+
+    .control-row.two-col {
+        gap: 6px;
+    }
+
+    .spin-btn, .sweep-btn {
+        padding: 6px 4px;
+        font-size: 12px;
+        min-height: 32px;
+    }
+
+    #throw-btn {
+        padding: 10px;
+        font-size: 16px;
+        min-height: 40px;
+    }
+
+    #sweep-toggle-btn {
+        padding: 10px;
+        font-size: 14px;
+        min-height: 40px;
+    }
+
+    #instructions {
+        display: none;
+    }
+}

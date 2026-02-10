@@ -35,11 +35,35 @@
     let offsetX = 0;
     let offsetY = 0;
 
+    function isMobile() {
+        return window.innerWidth <= 768;
+    }
+
+    function isLandscapeMobile() {
+        return window.innerHeight <= 500 && window.innerWidth <= 900;
+    }
+
     function resizeCanvas() {
-        const uiWidth = 300;
-        canvas.width = window.innerWidth - uiWidth;
-        canvas.height = window.innerHeight;
         pebblePattern = null; // invalidate cached pattern on canvas resize
+
+        if (isMobile() && !isLandscapeMobile()) {
+            // Portrait mobile: canvas on top, UI below
+            const uiPanel = document.getElementById('ui-overlay');
+            canvas.width = window.innerWidth;
+            // Let flexbox handle the height — measure after layout
+            // Use a percentage of viewport minus estimated UI height
+            const uiHeight = uiPanel.offsetHeight || (window.innerHeight * 0.4);
+            canvas.height = window.innerHeight - uiHeight;
+        } else if (isLandscapeMobile()) {
+            // Landscape mobile: side panel at 260px
+            canvas.width = window.innerWidth - 260;
+            canvas.height = window.innerHeight;
+        } else {
+            // Desktop
+            canvas.width = window.innerWidth - 300;
+            canvas.height = window.innerHeight;
+        }
+
         updateScale();
     }
 
@@ -87,6 +111,7 @@
     let gameState = {
         stones: [],
         currentTeam: TEAMS.RED,
+        hammer: TEAMS.YELLOW, // team with last stone advantage
         redThrown: 0,
         yellowThrown: 0,
         currentEnd: 1,
@@ -158,6 +183,7 @@
         gameState.phase = 'delivering';
         document.getElementById('throw-btn').disabled = true;
         document.getElementById('sweep-toggle-btn').style.display = 'block';
+        document.getElementById('sweep-toggle-btn').textContent = 'SWEEP';
         document.getElementById('throw-btn').style.display = 'none';
 
         // Camera follows stone
@@ -231,7 +257,9 @@
         document.getElementById('current-end').textContent = gameState.currentEnd;
 
         if (result.team && result.points > 0) {
-            gameState.currentTeam = result.team; // scoring team goes first
+            gameState.currentTeam = result.team; // scoring team goes first (disadvantage)
+            // Hammer goes to the team that did NOT score
+            gameState.hammer = result.team === TEAMS.RED ? TEAMS.YELLOW : TEAMS.RED;
         }
         // If blank end, same team keeps hammer (order stays)
 
@@ -293,6 +321,19 @@
 
         document.getElementById('throw-btn').style.display = 'block';
         document.getElementById('sweep-toggle-btn').style.display = 'none';
+
+        // Hammer indicator
+        const redHammer = document.getElementById('red-hammer');
+        const yellowHammer = document.getElementById('yellow-hammer');
+        if (gameState.hammer === TEAMS.RED) {
+            redHammer.style.display = 'inline';
+            redHammer.textContent = '\u{1F528}';
+            yellowHammer.style.display = 'none';
+        } else {
+            yellowHammer.style.display = 'inline';
+            yellowHammer.textContent = '\u{1F528}';
+            redHammer.style.display = 'none';
+        }
     }
 
     function nextTurn() {
@@ -359,6 +400,9 @@
         ctx.lineWidth = 2;
         ctx.strokeRect(leftEdge, topEdge, rightEdge - leftEdge, bottomEdge - topEdge);
 
+        // Ice logos (between the hog lines)
+        drawIceLogos();
+
         // Center line
         ctx.strokeStyle = CENTER_LINE;
         ctx.lineWidth = 1;
@@ -413,6 +457,467 @@
         ctx.save();
         ctx.fillStyle = pat;
         ctx.fillRect(x, y, w, h);
+        ctx.restore();
+    }
+
+    // --------------------------------------------------------
+    // SILLY ICE LOGOS
+    // Drawn on the ice surface — visible in default house view
+    // and during delivery camera zoom-out
+    // --------------------------------------------------------
+    function drawIceLogos() {
+        ctx.save();
+        ctx.globalAlpha = 0.35; // painted-on-ice look
+
+        // === LOGOS VISIBLE IN DEFAULT HOUSE VIEW (y ≈ 28–41.5) ===
+        // The house (rings) is centered at y=38.41, so we place logos
+        // in the open ice between hog line (y=32) and the house edge,
+        // and on the sides outside the 12-foot ring (radius 1.83m)
+
+        // ---------- Rubber Duck (left of house, visible in default view) ----------
+        drawRubberDuck(toCanvasX(-1.8), toCanvasY(29.5), toCanvasLen(1.5));
+
+        // ---------- Pizza Slice (right of house, visible in default view) ----------
+        drawPizzaSlice(toCanvasX(1.8), toCanvasY(30.0), toCanvasLen(1.4));
+
+        // ---------- Maple Leaf (center, just below hog line) ----------
+        drawMapleLeaf(toCanvasX(0), toCanvasY(30.0), toCanvasLen(1.6));
+
+        // ---------- Snowflake (left side, below back line) ----------
+        drawSnowflake(toCanvasX(-1.8), toCanvasY(40.5), toCanvasLen(1.0));
+
+        // ---------- Donut (right side, below back line) ----------
+        drawDonut(toCanvasX(1.8), toCanvasY(40.5), toCanvasLen(1.0));
+
+        // === LOGOS VISIBLE DURING DELIVERY (full sheet y ≈ -1 to 42) ===
+
+        // ---------- Smiley Face (center, mid-sheet) ----------
+        drawSmileyFace(toCanvasX(0), toCanvasY(20), toCanvasLen(2.0));
+
+        // ---------- Moose (right, between hog lines) ----------
+        drawMoose(toCanvasX(1.3), toCanvasY(15), toCanvasLen(2.2));
+
+        // ---------- Rocket (left side, near delivery end) ----------
+        drawRocket(toCanvasX(-1.4), toCanvasY(5), toCanvasLen(2.0));
+
+        ctx.globalAlpha = 1.0;
+        ctx.restore();
+    }
+
+    function drawRubberDuck(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Body (big yellow oval)
+        ctx.fillStyle = '#fdd835';
+        ctx.beginPath();
+        ctx.ellipse(0, s * 0.1, s * 0.7, s * 0.55, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head (smaller circle, upper left)
+        ctx.fillStyle = '#fdd835';
+        ctx.beginPath();
+        ctx.arc(-s * 0.3, -s * 0.35, s * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Beak
+        ctx.fillStyle = '#ff8f00';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.65, -s * 0.4);
+        ctx.lineTo(-s * 0.85, -s * 0.3);
+        ctx.lineTo(-s * 0.6, -s * 0.25);
+        ctx.closePath();
+        ctx.fill();
+
+        // Eye
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(-s * 0.38, -s * 0.42, s * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Wing
+        ctx.fillStyle = '#f9c800';
+        ctx.beginPath();
+        ctx.ellipse(s * 0.15, s * 0.0, s * 0.3, s * 0.2, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawPizzaSlice(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Slice shape (triangle with rounded crust)
+        ctx.fillStyle = '#e8a435';
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.7);
+        ctx.lineTo(-s * 0.55, -s * 0.5);
+        ctx.quadraticCurveTo(0, -s * 0.7, s * 0.55, -s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Crust
+        ctx.strokeStyle = '#c07820';
+        ctx.lineWidth = toCanvasLen(0.08);
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.55, -s * 0.5);
+        ctx.quadraticCurveTo(0, -s * 0.7, s * 0.55, -s * 0.5);
+        ctx.stroke();
+
+        // Pepperoni
+        ctx.fillStyle = '#c0392b';
+        const pepperoni = [
+            [0, -s * 0.2, s * 0.1],
+            [-s * 0.18, s * 0.15, s * 0.08],
+            [s * 0.15, s * 0.05, s * 0.09],
+            [-s * 0.05, -s * 0.4, s * 0.07],
+            [s * 0.1, -s * 0.3, s * 0.07],
+        ];
+        for (const [px, py, pr] of pepperoni) {
+            ctx.beginPath();
+            ctx.arc(px, py, pr, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    function drawSmileyFace(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Face
+        ctx.fillStyle = '#fdd835';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = '#333';
+        ctx.beginPath();
+        ctx.arc(-s * 0.28, -s * 0.2, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s * 0.28, -s * 0.2, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Smile
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = toCanvasLen(0.06);
+        ctx.beginPath();
+        ctx.arc(0, s * 0.05, s * 0.4, 0.2, Math.PI - 0.2);
+        ctx.stroke();
+
+        // Rosy cheeks
+        ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+        ctx.beginPath();
+        ctx.arc(-s * 0.45, s * 0.1, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s * 0.45, s * 0.1, s * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawMapleLeaf(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        // Simplified maple leaf shape
+        ctx.moveTo(0, -s * 0.8);
+        ctx.lineTo(s * 0.12, -s * 0.45);
+        ctx.lineTo(s * 0.55, -s * 0.55);
+        ctx.lineTo(s * 0.35, -s * 0.25);
+        ctx.lineTo(s * 0.75, -s * 0.15);
+        ctx.lineTo(s * 0.4, s * 0.05);
+        ctx.lineTo(s * 0.5, s * 0.45);
+        ctx.lineTo(s * 0.15, s * 0.3);
+        ctx.lineTo(0, s * 0.7);
+        ctx.lineTo(-s * 0.15, s * 0.3);
+        ctx.lineTo(-s * 0.5, s * 0.45);
+        ctx.lineTo(-s * 0.4, s * 0.05);
+        ctx.lineTo(-s * 0.75, -s * 0.15);
+        ctx.lineTo(-s * 0.35, -s * 0.25);
+        ctx.lineTo(-s * 0.55, -s * 0.55);
+        ctx.lineTo(-s * 0.12, -s * 0.45);
+        ctx.closePath();
+        ctx.fill();
+
+        // Stem
+        ctx.strokeStyle = '#8b3a2a';
+        ctx.lineWidth = toCanvasLen(0.05);
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.45);
+        ctx.lineTo(0, s * 0.85);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    function drawMoose(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Body
+        ctx.fillStyle = '#6d4c2a';
+        ctx.beginPath();
+        ctx.ellipse(0, s * 0.1, s * 0.55, s * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head
+        ctx.fillStyle = '#7a5630';
+        ctx.beginPath();
+        ctx.ellipse(-s * 0.5, -s * 0.25, s * 0.22, s * 0.18, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Snout
+        ctx.fillStyle = '#8a6540';
+        ctx.beginPath();
+        ctx.ellipse(-s * 0.72, -s * 0.2, s * 0.12, s * 0.09, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Antlers
+        ctx.strokeStyle = '#5a3e20';
+        ctx.lineWidth = toCanvasLen(0.05);
+        ctx.lineCap = 'round';
+        // Left antler
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.4, -s * 0.4);
+        ctx.lineTo(-s * 0.3, -s * 0.7);
+        ctx.lineTo(-s * 0.15, -s * 0.6);
+        ctx.moveTo(-s * 0.3, -s * 0.7);
+        ctx.lineTo(-s * 0.45, -s * 0.75);
+        ctx.stroke();
+        // Right antler
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.55, -s * 0.42);
+        ctx.lineTo(-s * 0.65, -s * 0.7);
+        ctx.lineTo(-s * 0.8, -s * 0.6);
+        ctx.moveTo(-s * 0.65, -s * 0.7);
+        ctx.lineTo(-s * 0.55, -s * 0.78);
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+
+        // Eye
+        ctx.fillStyle = '#222';
+        ctx.beginPath();
+        ctx.arc(-s * 0.45, -s * 0.3, s * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Legs
+        ctx.strokeStyle = '#5a3e20';
+        ctx.lineWidth = toCanvasLen(0.06);
+        const legs = [
+            [-s * 0.3, s * 0.35, -s * 0.32, s * 0.7],
+            [-s * 0.1, s * 0.35, -s * 0.08, s * 0.7],
+            [s * 0.15, s * 0.35, s * 0.17, s * 0.7],
+            [s * 0.35, s * 0.35, s * 0.37, s * 0.7],
+        ];
+        for (const [x1, y1, x2, y2] of legs) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        // Tail (small stub)
+        ctx.fillStyle = '#5a3e20';
+        ctx.beginPath();
+        ctx.ellipse(s * 0.55, s * 0.0, s * 0.08, s * 0.05, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawDonut(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Donut body
+        ctx.fillStyle = '#d4903c';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Frosting (pink icing on top half)
+        ctx.fillStyle = '#e84393';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.72, Math.PI, Math.PI * 2);
+        // Drippy edge
+        ctx.quadraticCurveTo(s * 0.72, s * 0.15, s * 0.55, s * 0.2);
+        ctx.quadraticCurveTo(s * 0.4, s * 0.35, s * 0.2, s * 0.15);
+        ctx.quadraticCurveTo(0, s * 0.3, -s * 0.2, s * 0.18);
+        ctx.quadraticCurveTo(-s * 0.4, s * 0.35, -s * 0.55, s * 0.15);
+        ctx.quadraticCurveTo(-s * 0.72, s * 0.1, -s * 0.72, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Donut hole
+        ctx.fillStyle = ICE_COLOR;
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sprinkles
+        const sprinkleColors = ['#fdd835', '#4caf50', '#2196f3', '#ff5722', '#9c27b0'];
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2;
+            const r = s * (0.4 + (i % 3) * 0.08);
+            const sx = Math.cos(angle) * r;
+            const sy = Math.sin(angle) * r;
+            const sAngle = angle + 0.5;
+            ctx.fillStyle = sprinkleColors[i % sprinkleColors.length];
+            ctx.save();
+            ctx.translate(sx, sy);
+            ctx.rotate(sAngle);
+            ctx.fillRect(-s * 0.04, -s * 0.015, s * 0.08, s * 0.03);
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    function drawSnowflake(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        ctx.strokeStyle = '#64b5f6';
+        ctx.lineWidth = toCanvasLen(0.04);
+        ctx.lineCap = 'round';
+
+        // 6 main arms
+        for (let i = 0; i < 6; i++) {
+            const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+            ctx.save();
+            ctx.rotate(angle);
+
+            // Main arm
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -s * 0.75);
+            ctx.stroke();
+
+            // Side branches
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.35);
+            ctx.lineTo(s * 0.2, -s * 0.55);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.35);
+            ctx.lineTo(-s * 0.2, -s * 0.55);
+            ctx.stroke();
+
+            // Small branches near tip
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.55);
+            ctx.lineTo(s * 0.12, -s * 0.68);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.55);
+            ctx.lineTo(-s * 0.12, -s * 0.68);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Center dot
+        ctx.fillStyle = '#90caf9';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.lineCap = 'butt';
+        ctx.restore();
+    }
+
+    function drawRocket(cx, cy, size) {
+        const s = size / 2;
+        ctx.save();
+        ctx.translate(cx, cy);
+
+        // Flame
+        ctx.fillStyle = '#ff6f00';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.15, s * 0.5);
+        ctx.quadraticCurveTo(-s * 0.2, s * 0.85, 0, s * 0.9);
+        ctx.quadraticCurveTo(s * 0.2, s * 0.85, s * 0.15, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner flame
+        ctx.fillStyle = '#fdd835';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.08, s * 0.5);
+        ctx.quadraticCurveTo(-s * 0.1, s * 0.72, 0, s * 0.75);
+        ctx.quadraticCurveTo(s * 0.1, s * 0.72, s * 0.08, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // Rocket body
+        ctx.fillStyle = '#eceff1';
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.8);
+        ctx.quadraticCurveTo(s * 0.25, -s * 0.5, s * 0.22, s * 0.0);
+        ctx.lineTo(s * 0.22, s * 0.5);
+        ctx.lineTo(-s * 0.22, s * 0.5);
+        ctx.lineTo(-s * 0.22, s * 0.0);
+        ctx.quadraticCurveTo(-s * 0.25, -s * 0.5, 0, -s * 0.8);
+        ctx.closePath();
+        ctx.fill();
+
+        // Nose cone
+        ctx.fillStyle = '#e53935';
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.8);
+        ctx.quadraticCurveTo(s * 0.15, -s * 0.55, s * 0.18, -s * 0.35);
+        ctx.lineTo(-s * 0.18, -s * 0.35);
+        ctx.quadraticCurveTo(-s * 0.15, -s * 0.55, 0, -s * 0.8);
+        ctx.closePath();
+        ctx.fill();
+
+        // Window
+        ctx.fillStyle = '#42a5f5';
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.1, s * 0.1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#90a4ae';
+        ctx.lineWidth = toCanvasLen(0.02);
+        ctx.stroke();
+
+        // Window shine
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.arc(-s * 0.03, -s * 0.13, s * 0.03, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Fins
+        ctx.fillStyle = '#e53935';
+        // Left fin
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.22, s * 0.25);
+        ctx.lineTo(-s * 0.42, s * 0.55);
+        ctx.lineTo(-s * 0.22, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+        // Right fin
+        ctx.beginPath();
+        ctx.moveTo(s * 0.22, s * 0.25);
+        ctx.lineTo(s * 0.42, s * 0.55);
+        ctx.lineTo(s * 0.22, s * 0.5);
+        ctx.closePath();
+        ctx.fill();
+
         ctx.restore();
     }
 
@@ -629,6 +1134,229 @@
         }
         ctx.stroke();
         ctx.setLineDash([]);
+    }
+
+    // --------------------------------------------------------
+    // DOWN-ICE (PIP) VIEW - overhead house view for aiming
+    // --------------------------------------------------------
+    // roundRect polyfill for older browsers
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            if (typeof r === 'number') r = [r];
+            const rad = r[0] || 0;
+            this.moveTo(x + rad, y);
+            this.arcTo(x + w, y, x + w, y + h, rad);
+            this.arcTo(x + w, y + h, x, y + h, rad);
+            this.arcTo(x, y + h, x, y, rad);
+            this.arcTo(x, y, x + w, y, rad);
+            this.closePath();
+        };
+    }
+    function drawDownIceView() {
+        // Show during aiming and while stone is in flight
+        if (gameState.phase !== 'aiming' && gameState.phase !== 'delivering' &&
+            gameState.phase !== 'waitingNextTurn') return;
+
+        // PIP dimensions and position (top-left of canvas)
+        // Scale down on mobile so it doesn't dominate the smaller canvas
+        const mobile = isMobile();
+        const pipMargin = mobile ? 6 : 12;
+        const pipW = mobile
+            ? Math.min(140, canvas.width * 0.35)
+            : Math.min(280, canvas.width * 0.28);
+        // House is roughly square (width:height ≈ sheet width : house diameter*2+margin)
+        const houseViewWidth = CurlingPhysics.SHEET.width;  // 4.75m
+        const houseViewHeight = HOUSE.twelveFoot * 2 + 4;   // ~7.66m visible
+        const pipH = pipW * (houseViewHeight / houseViewWidth);
+
+        const pipX = pipMargin;
+        const pipY = pipMargin;
+
+        // PIP coordinate transforms
+        const pipScale = pipW / houseViewWidth;
+        const houseCenter = P.farTeeLine; // y-center of the view
+
+        function toPipX(realX) {
+            return pipX + (realX + houseViewWidth / 2) * pipScale;
+        }
+        function toPipY(realY) {
+            return pipY + pipH - (realY - (houseCenter - houseViewHeight / 2)) * pipScale;
+        }
+        function toPipLen(m) {
+            return m * pipScale;
+        }
+
+        // Background with border
+        ctx.save();
+
+        // Clip to PIP rect
+        ctx.beginPath();
+        ctx.roundRect(pipX, pipY, pipW, pipH, 6);
+        ctx.clip();
+
+        // Ice background
+        ctx.fillStyle = '#dde5ee';
+        ctx.fillRect(pipX, pipY, pipW, pipH);
+
+        // House rings
+        const hcx = toPipX(0);
+        const hcy = toPipY(P.farTeeLine);
+
+        // 12-foot blue
+        ctx.fillStyle = '#2a6cb6';
+        ctx.beginPath();
+        ctx.arc(hcx, hcy, toPipLen(HOUSE.twelveFoot), 0, Math.PI * 2);
+        ctx.fill();
+        // 8-foot white
+        ctx.fillStyle = '#e8ecf0';
+        ctx.beginPath();
+        ctx.arc(hcx, hcy, toPipLen(HOUSE.eightFoot), 0, Math.PI * 2);
+        ctx.fill();
+        // 4-foot red
+        ctx.fillStyle = '#cc3333';
+        ctx.beginPath();
+        ctx.arc(hcx, hcy, toPipLen(HOUSE.fourFoot), 0, Math.PI * 2);
+        ctx.fill();
+        // Button white
+        ctx.fillStyle = '#e8ecf0';
+        ctx.beginPath();
+        ctx.arc(hcx, hcy, toPipLen(HOUSE.button * 2.5), 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ring outlines
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        for (const r of [HOUSE.twelveFoot, HOUSE.eightFoot, HOUSE.fourFoot]) {
+            ctx.beginPath();
+            ctx.arc(hcx, hcy, toPipLen(r), 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Tee line
+        ctx.strokeStyle = 'rgba(192, 57, 43, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(toPipX(-houseViewWidth / 2), hcy);
+        ctx.lineTo(toPipX(houseViewWidth / 2), hcy);
+        ctx.stroke();
+
+        // Center line
+        ctx.beginPath();
+        ctx.moveTo(hcx, pipY);
+        ctx.lineTo(hcx, pipY + pipH);
+        ctx.stroke();
+
+        // Hog line
+        const hogY = toPipY(P.farHogLine);
+        if (hogY < pipY + pipH && hogY > pipY) {
+            ctx.strokeStyle = 'rgba(192, 57, 43, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(toPipX(-houseViewWidth / 2), hogY);
+            ctx.lineTo(toPipX(houseViewWidth / 2), hogY);
+            ctx.stroke();
+        }
+
+        // Back line
+        const backY = toPipY(P.farBackLine);
+        if (backY < pipY + pipH && backY > pipY) {
+            ctx.strokeStyle = 'rgba(192, 57, 43, 0.4)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(toPipX(-houseViewWidth / 2), backY);
+            ctx.lineTo(toPipX(houseViewWidth / 2), backY);
+            ctx.stroke();
+        }
+
+        // Draw all existing stones (mini versions)
+        const stoneR = toPipLen(STONE_R);
+        for (const stone of gameState.stones) {
+            if (!stone.active) continue;
+            const sx = toPipX(stone.x);
+            const sy = toPipY(stone.y);
+            // Skip if off the PIP
+            if (sx < pipX - stoneR || sx > pipX + pipW + stoneR) continue;
+            if (sy < pipY - stoneR || sy > pipY + pipH + stoneR) continue;
+
+            ctx.fillStyle = stone.team === TEAMS.RED ? '#e53935' : '#fdd835';
+            ctx.beginPath();
+            ctx.arc(sx, sy, Math.max(stoneR, 4), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = stone.team === TEAMS.RED ? '#b71c1c' : '#f9a825';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // Aim projection line (during aiming)
+        if (gameState.phase === 'aiming') {
+            const aimDeg = parseFloat(document.getElementById('aim-slider').value);
+            const aimRad = aimDeg * Math.PI / 180;
+
+            // Project a line from hack through the house
+            const startX = 0;
+            const startY = P.hack + 1.0;
+            const lineLen = 45;
+            const endX = startX + lineLen * Math.sin(aimRad);
+            const endY = startY + lineLen * Math.cos(aimRad);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 3]);
+            ctx.beginPath();
+            ctx.moveTo(toPipX(startX), toPipY(startY));
+            ctx.lineTo(toPipX(endX), toPipY(endY));
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Aim crosshair at the tee line intersection
+            const teeIntersectX = startX + (P.farTeeLine - startY) * Math.tan(aimRad);
+            const crossX = toPipX(teeIntersectX);
+            const crossY = hcy;
+            const crossSize = 6;
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(crossX - crossSize, crossY);
+            ctx.lineTo(crossX + crossSize, crossY);
+            ctx.moveTo(crossX, crossY - crossSize);
+            ctx.lineTo(crossX, crossY + crossSize);
+            ctx.stroke();
+        }
+
+        // Delivered stone during flight
+        if (gameState.deliveredStone && gameState.deliveredStone.active) {
+            const ds = gameState.deliveredStone;
+            const dsx = toPipX(ds.x);
+            const dsy = toPipY(ds.y);
+            if (dsx >= pipX && dsx <= pipX + pipW && dsy >= pipY && dsy <= pipY + pipH) {
+                ctx.fillStyle = ds.team === TEAMS.RED ? '#e53935' : '#fdd835';
+                ctx.beginPath();
+                ctx.arc(dsx, dsy, Math.max(stoneR, 5), 0, Math.PI * 2);
+                ctx.fill();
+                // Pulsing outline for the active stone
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore();
+
+        // PIP border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(pipX, pipY, pipW, pipH, 6);
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(pipX, pipY + pipH - 18, 68, 18);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('Down Ice', pipX + 6, pipY + pipH - 5);
     }
 
     function drawSweepEffect() {
@@ -863,6 +1591,7 @@
 
         drawSweepEffect();
         drawScoreOverlay();
+        drawDownIceView();
 
         requestAnimationFrame(gameLoop);
     }
@@ -953,15 +1682,7 @@
     document.addEventListener('keydown', (e) => {
         if (e.code === 'Space') {
             e.preventDefault();
-            if (gameState.phase === 'delivering' && gameState.deliveredStone?.moving) {
-                gameState.isSweeping = true;
-                if (gameState.sweepLevel === 'none') {
-                    gameState.sweepLevel = 'hard';
-                    setSweepLevel('hard');
-                }
-                document.getElementById('sweep-toggle-btn').classList.add('sweeping');
-                document.getElementById('sweep-toggle-btn').textContent = 'SWEEPING!';
-            }
+            startSweeping();
         }
 
         if (e.code === 'Enter' && gameState.phase === 'aiming') {
@@ -983,10 +1704,60 @@
 
     document.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
-            gameState.isSweeping = false;
-            document.getElementById('sweep-toggle-btn').classList.remove('sweeping');
-            document.getElementById('sweep-toggle-btn').textContent = 'SWEEPING (Hold Space)';
+            stopSweeping();
         }
+    });
+
+    function startSweeping() {
+        if (gameState.phase === 'delivering' && gameState.deliveredStone?.moving) {
+            gameState.isSweeping = true;
+            if (gameState.sweepLevel === 'none') {
+                gameState.sweepLevel = 'hard';
+                setSweepLevel('hard');
+            }
+            document.getElementById('sweep-toggle-btn').classList.add('sweeping');
+            document.getElementById('sweep-toggle-btn').textContent = 'SWEEPING!';
+        }
+    }
+
+    function stopSweeping() {
+        gameState.isSweeping = false;
+        document.getElementById('sweep-toggle-btn').classList.remove('sweeping');
+        document.getElementById('sweep-toggle-btn').textContent = 'SWEEP';
+    }
+
+    // Touch events for sweep button (touch-and-hold to sweep)
+    const sweepBtn = document.getElementById('sweep-toggle-btn');
+    sweepBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        startSweeping();
+    }, { passive: false });
+    sweepBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        stopSweeping();
+    }, { passive: false });
+    sweepBtn.addEventListener('touchcancel', (e) => {
+        stopSweeping();
+    });
+    // Also support mouse hold on sweep button (for desktop testing)
+    sweepBtn.addEventListener('mousedown', (e) => {
+        startSweeping();
+    });
+    sweepBtn.addEventListener('mouseup', (e) => {
+        stopSweeping();
+    });
+    sweepBtn.addEventListener('mouseleave', (e) => {
+        stopSweeping();
+    });
+
+    // Prevent iOS bounce / pull-to-refresh on the canvas
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+
+    // Handle orientation changes
+    window.addEventListener('orientationchange', () => {
+        setTimeout(resizeCanvas, 150);
     });
 
     // New game button
@@ -999,6 +1770,7 @@
         gameState = {
             stones: [],
             currentTeam: TEAMS.RED,
+            hammer: TEAMS.YELLOW,
             redThrown: 0,
             yellowThrown: 0,
             currentEnd: 1,
@@ -1026,6 +1798,10 @@
     // --------------------------------------------------------
     resizeCanvas();
     updateUI();
-    requestAnimationFrame(gameLoop);
+    // Deferred resize to catch mobile layout after UI panel is measured
+    requestAnimationFrame(() => {
+        resizeCanvas();
+        requestAnimationFrame(gameLoop);
+    });
 
 })();

@@ -73,10 +73,10 @@ const CurlingPhysics = (() => {
         // Direction: IN the direction of rotation (the key curling anomaly)
         // - Clockwise spin -> curls right
         // - Counter-clockwise spin -> curls left
-        // Tuned to produce ~1.0-1.5m lateral displacement over full draw-weight travel.
+        // Tuned to produce ~1.5-2.0m lateral displacement over full draw-weight travel.
         // The curl is modeled as a lateral acceleration that increases as speed drops,
         // matching the real observation that most curling happens in the last third of travel.
-        curlCoefficient: 0.12,
+        curlCoefficient: 0.30,
 
         // Curl is stronger at lower speeds (stone curls more near the house)
         // and with fewer rotations (less spin = more curl per revolution)
@@ -86,18 +86,17 @@ const CurlingPhysics = (() => {
             const absOmega = Math.abs(angularVelocity);
 
             // Speed factor: curl increases dramatically as stone slows
-            // Most of the 1-1.5m curl happens in the final meters
-            const speedFactor = 1.0 / (0.5 + linearSpeed * linearSpeed);
+            // Most of the curl happens in the final third of travel
+            // Using 1/v relationship so curl ramps hard at low speeds
+            const speedFactor = 1.0 / (0.2 + linearSpeed);
 
-            // Spin efficiency: ~2.5 rotations is optimal
-            // Less spin = less curl force but more per-revolution effect
-            // More spin = diminishing returns (stone goes straighter)
-            // Map omega to an efficiency curve peaking around 1.0-2.0 rad/s
+            // Spin efficiency: ~2.5-4 rotations is optimal
+            // Less spin = less curl, more spin = diminishing returns
             let spinEfficiency;
             if (absOmega < 2.5) {
                 spinEfficiency = absOmega / 2.5; // linear ramp up
             } else if (absOmega < 5.0) {
-                spinEfficiency = 1.0; // plateau
+                spinEfficiency = 1.0; // plateau (sweet spot)
             } else {
                 spinEfficiency = 5.0 / absOmega; // diminishing
             }
@@ -135,7 +134,7 @@ const CurlingPhysics = (() => {
     // Guard: ~1.8 m/s, Draw: ~2.5 m/s, Takeout: ~3.5 m/s, Peel: ~4.5 m/s
     function weightToSpeed(weightPercent) {
         const minSpeed = 1.5;  // guard weight
-        const maxSpeed = 4.8;  // hard peel
+        const maxSpeed = 3.8;  // hard peel
         // Non-linear: more precision at draw weight range
         const t = weightPercent / 100;
         return minSpeed + (maxSpeed - minSpeed) * (t * t * 0.3 + t * 0.7);
