@@ -85,14 +85,12 @@ const CurlingPhysics = (() => {
 
             const absOmega = Math.abs(angularVelocity);
 
-            // Speed factor: curl increases dramatically as stone slows.
-            // At high delivery speeds (takeout/peel), stones barely curl at all.
-            // Using 1/v² relationship so curl drops off sharply at high speeds
-            // but ramps hard at low speeds (most curl in last third of travel).
-            // This models two real effects:
-            //   1. Less curl force at high speed (less asymmetric friction)
-            //   2. Less time on ice = less total deflection (handled by simulation)
-            const speedFactor = 1.0 / (0.15 + linearSpeed * linearSpeed);
+            // Speed factor: curl increases as stone slows, but caps at low speed
+            // to prevent a sharp hook in the last couple feet.
+            // At high speeds (peel/takeout), v² makes curl negligible.
+            // At low speeds, clamped so it doesn't spike near stopping.
+            const rawFactor = 1.0 / (0.15 + linearSpeed * linearSpeed);
+            const speedFactor = Math.min(rawFactor, 2.0);
 
             // Spin efficiency: ~2.5-4 rotations is optimal
             // Less spin = less curl, more spin = diminishing returns
