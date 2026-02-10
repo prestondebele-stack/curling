@@ -152,6 +152,83 @@
     // Hog-line violation indicator
     let hogLineViolation = null; // { x, y, timer }
 
+    // Free Guard Zone (FGZ) violation indicator
+    let fgzViolation = null; // { timer }
+
+    // FGZ snapshots — saved positions of protected stones before each throw
+    let fgzSnapshots = []; // [{ stone, x, y }]
+
+    // --------------------------------------------------------
+    // FREE GUARD ZONE (5-Rock Rule)
+    // --------------------------------------------------------
+    // The FGZ is the area between the far hog line and the front of the house
+    // (12-foot ring), NOT including inside the house.
+    // During the first 5 stones of each end, opponent stones in the FGZ
+    // cannot be removed. If they are, the thrown stone is removed and
+    // displaced stones are restored.
+
+    function isInFreeGuardZone(stone) {
+        if (!stone.active) return false;
+        const distToTee = Math.sqrt(stone.x * stone.x + (stone.y - P.farTeeLine) ** 2);
+        // In FGZ: past the far hog line, but NOT inside the house (12-foot ring)
+        return stone.y >= P.farHogLine && distToTee > HOUSE.twelveFoot + STONE_R;
+    }
+
+    function getTotalStonesThrown() {
+        return gameState.redThrown + gameState.yellowThrown;
+    }
+
+    function snapshotFGZStones() {
+        // Only protect during first 5 stones of the end
+        // Snapshot is taken BEFORE the current throw (throw count already incremented)
+        // So we check if total thrown <= 5 (this is the 1st through 5th stone)
+        const totalThrown = getTotalStonesThrown();
+        if (totalThrown > 5) {
+            fgzSnapshots = [];
+            return;
+        }
+
+        // Snapshot all opponent's stones currently in the FGZ
+        fgzSnapshots = [];
+        for (const stone of gameState.stones) {
+            if (stone === gameState.deliveredStone) continue; // skip the just-thrown stone
+            if (stone.team === gameState.currentTeam) continue; // only protect opponent's stones
+            if (isInFreeGuardZone(stone)) {
+                fgzSnapshots.push({ stone, x: stone.x, y: stone.y });
+            }
+        }
+    }
+
+    function checkFGZViolation() {
+        if (fgzSnapshots.length === 0) return;
+
+        let violated = false;
+        for (const snap of fgzSnapshots) {
+            const stone = snap.stone;
+            // Was the protected stone removed from play or knocked out of the FGZ?
+            if (!stone.active || !isInFreeGuardZone(stone)) {
+                // Restore the stone to its pre-throw position
+                stone.active = true;
+                stone.x = snap.x;
+                stone.y = snap.y;
+                stone.vx = 0;
+                stone.vy = 0;
+                stone.omega = 0;
+                stone.moving = false;
+                stone.fadeOut = undefined;
+                violated = true;
+            }
+        }
+
+        if (violated && gameState.deliveredStone) {
+            // Remove the thrown stone from play
+            deactivateStone(gameState.deliveredStone, true);
+            fgzViolation = { timer: 2000 }; // show indicator for 2s
+        }
+
+        fgzSnapshots = [];
+    }
+
     function deliverStone() {
         const aimDeg = parseFloat(document.getElementById('aim-slider').value);
         const weightPct = parseFloat(document.getElementById('weight-slider').value);
@@ -191,6 +268,9 @@
 
         // Camera follows stone
         VIEW.followStone = true;
+
+        // Snapshot FGZ-protected stones before this throw resolves
+        snapshotFGZStones();
     }
 
     // --------------------------------------------------------
@@ -1439,6 +1519,9 @@
                 if (!anyMoving) {
                     physicsAccumulator = 0;
                     if (gameState.phase === 'delivering' || gameState.phase === 'settling') {
+                        // Check FGZ violation before advancing turn
+                        checkFGZViolation();
+
                         gameState.phase = 'waitingNextTurn';
                         gameState.isSweeping = false;
                         document.getElementById('sweep-toggle-btn').style.display = 'none';
@@ -1480,6 +1563,12 @@
             if (hogLineViolation.timer <= 0) hogLineViolation = null;
         }
 
+        // Tick FGZ violation indicator
+        if (fgzViolation) {
+            fgzViolation.timer -= frameDeltaMs;
+            if (fgzViolation.timer <= 0) fgzViolation = null;
+        }
+
 
 
         // Render
@@ -1498,6 +1587,7 @@
         drawSweepEffect();
         drawScoreOverlay();
         drawHogLineViolation();
+        drawFGZViolation();
         drawVignette();
 
         requestAnimationFrame(gameLoop);
@@ -1533,6 +1623,41 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('HOG LINE', cx, cy + 1);
+
+        ctx.restore();
+    }
+
+    // FGZ violation indicator — centered on screen
+    function drawFGZViolation() {
+        if (!fgzViolation) return;
+        const alpha = Math.min(1, fgzViolation.timer / 400);
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        const cx = canvas.width / 2;
+        const cy = canvas.height * 0.3;
+
+        // Background pill
+        ctx.fillStyle = 'rgba(200, 130, 0, 0.9)';
+        const textW = 260;
+        const textH = 44;
+        ctx.beginPath();
+        ctx.moveTo(cx - textW / 2 + 10, cy - textH / 2);
+        ctx.lineTo(cx + textW / 2 - 10, cy - textH / 2);
+        ctx.arcTo(cx + textW / 2, cy - textH / 2, cx + textW / 2, cy, 10);
+        ctx.arcTo(cx + textW / 2, cy + textH / 2, cx - textW / 2, cy + textH / 2, 10);
+        ctx.arcTo(cx - textW / 2, cy + textH / 2, cx - textW / 2, cy, 10);
+        ctx.arcTo(cx - textW / 2, cy - textH / 2, cx + textW / 2, cy - textH / 2, 10);
+        ctx.closePath();
+        ctx.fill();
+
+        // Text
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('FREE GUARD ZONE', cx, cy + 1);
 
         ctx.restore();
     }
@@ -1746,6 +1871,10 @@
             deliveredStone: null,
             simSpeed: 3.0,
         };
+
+        fgzSnapshots = [];
+        fgzViolation = null;
+        hogLineViolation = null;
 
         document.getElementById('red-total').textContent = '0';
         document.getElementById('yellow-total').textContent = '0';
