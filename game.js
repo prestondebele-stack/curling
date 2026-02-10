@@ -1576,19 +1576,8 @@
                 deactivateStone(stone, true);
             }
 
-            // Side-wall bounce (reflect off boards instead of vanishing)
-            if (stone.x > halfW - STONE_R) {
-                stone.x = halfW - STONE_R;
-                stone.vx = -Math.abs(stone.vx) * 0.5; // bounce with energy loss
-                stone.omega *= 0.7; // lose some spin on wall hit
-            } else if (stone.x < -halfW + STONE_R) {
-                stone.x = -halfW + STONE_R;
-                stone.vx = Math.abs(stone.vx) * 0.5;
-                stone.omega *= 0.7;
-            }
-
-            // Way off the sides (safety — shouldn't happen with bounce)
-            if (Math.abs(stone.x) > halfW + STONE_R * 2) {
+            // Side wall — stone touching the boards is out of play (instant removal)
+            if (Math.abs(stone.x) > halfW - STONE_R) {
                 deactivateStone(stone, true);
             }
 
