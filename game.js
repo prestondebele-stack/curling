@@ -1480,12 +1480,7 @@
             if (hogLineViolation.timer <= 0) hogLineViolation = null;
         }
 
-        // Auto-stop sweeping when stone passes the far hog line
-        if (gameState.isSweeping && gameState.deliveredStone) {
-            if (gameState.deliveredStone.y > P.farHogLine) {
-                stopSweeping();
-            }
-        }
+
 
         // Render
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1688,10 +1683,6 @@
 
     function startSweeping() {
         if (gameState.phase === 'delivering' && gameState.deliveredStone?.moving) {
-            // Sweeping only allowed between the hog lines (real curling rule)
-            const stoneY = gameState.deliveredStone.y;
-            if (stoneY < P.nearHogLine || stoneY > P.farHogLine) return;
-
             gameState.isSweeping = true;
             if (gameState.sweepLevel === 'none') {
                 gameState.sweepLevel = 'hard';
