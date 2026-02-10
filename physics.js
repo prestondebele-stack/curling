@@ -76,7 +76,7 @@ const CurlingPhysics = (() => {
         // Tuned to produce ~1.5-2.0m lateral displacement over full draw-weight travel.
         // The curl is modeled as a lateral acceleration that increases as speed drops,
         // matching the real observation that most curling happens in the last third of travel.
-        curlCoefficient: 0.30,
+        curlCoefficient: 0.70,
 
         // Curl is stronger at lower speeds (stone curls more near the house)
         // and with fewer rotations (less spin = more curl per revolution)
@@ -85,10 +85,14 @@ const CurlingPhysics = (() => {
 
             const absOmega = Math.abs(angularVelocity);
 
-            // Speed factor: curl increases dramatically as stone slows
-            // Most of the curl happens in the final third of travel
-            // Using 1/v relationship so curl ramps hard at low speeds
-            const speedFactor = 1.0 / (0.2 + linearSpeed);
+            // Speed factor: curl increases dramatically as stone slows.
+            // At high delivery speeds (takeout/peel), stones barely curl at all.
+            // Using 1/v² relationship so curl drops off sharply at high speeds
+            // but ramps hard at low speeds (most curl in last third of travel).
+            // This models two real effects:
+            //   1. Less curl force at high speed (less asymmetric friction)
+            //   2. Less time on ice = less total deflection (handled by simulation)
+            const speedFactor = 1.0 / (0.15 + linearSpeed * linearSpeed);
 
             // Spin efficiency: ~2.5-4 rotations is optimal
             // Less spin = less curl, more spin = diminishing returns
