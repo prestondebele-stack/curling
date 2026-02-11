@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // CURLING GAME - Main game logic and rendering
 // ============================================================
 
@@ -50,7 +50,7 @@
             // Portrait mobile: canvas on top, UI below
             const uiPanel = document.getElementById('ui-overlay');
             canvas.width = window.innerWidth;
-            // Let flexbox handle the height â€” measure after layout
+            // Let flexbox handle the height — measure after layout
             // Use a percentage of viewport minus estimated UI height
             const uiHeight = uiPanel.offsetHeight || (window.innerHeight * 0.4);
             canvas.height = window.innerHeight - uiHeight;
@@ -192,7 +192,7 @@
     // Free Guard Zone (FGZ) violation indicator
     let fgzViolation = null; // { timer }
 
-    // FGZ snapshots â€” saved positions of protected stones before each throw
+    // FGZ snapshots — saved positions of protected stones before each throw
     let fgzSnapshots = []; // [{ stone, x, y }]
 
     // --------------------------------------------------------
@@ -497,7 +497,7 @@
         updateUI();
 
         document.getElementById('aim-slider').value = 0;
-        document.getElementById('aim-value').textContent = '0.0Â°';
+        document.getElementById('aim-value').textContent = '0.0°';
 
         if (isBotTurn()) {
             triggerBotTurn();
@@ -539,7 +539,7 @@
         ctx.fillStyle = iceGrad;
         ctx.fillRect(leftEdge, topEdge, rightEdge - leftEdge, bottomEdge - topEdge);
 
-        // Specular highlight â€” overhead arena light simulation
+        // Specular highlight — overhead arena light simulation
         const specGrad = ctx.createRadialGradient(
             toCanvasX(0), toCanvasY(P.farTeeLine), 0,
             toCanvasX(0), toCanvasY(P.farTeeLine), toCanvasLen(4)
@@ -974,7 +974,7 @@
         const startY = P.hack + 1.0;
 
         // Draw a dark dashed line showing the aim direction
-        const lineLen = 45; // meters â€” extends past the house
+        const lineLen = 45; // meters — extends past the house
         const endX = startX + lineLen * Math.sin(aimRad);
         const endY = startY + lineLen * Math.cos(aimRad);
 
@@ -1087,7 +1087,7 @@
             VIEW.targetYMax = 41.5;
         }
 
-        // Smooth interpolation — faster for zoom transitions
+        // Smooth interpolation � faster for zoom transitions
         const lerp = gameState.houseZoom ? 0.10 : 0.06;
         VIEW.currentYMin += (VIEW.targetYMin - VIEW.currentYMin) * lerp;
         VIEW.currentYMax += (VIEW.targetYMax - VIEW.currentYMax) * lerp;
@@ -1221,6 +1221,7 @@
         drawHogLineViolation();
         drawFGZViolation();
         drawVignette();
+        drawStagedStones();
 
         requestAnimationFrame(gameLoop);
     }
@@ -1259,7 +1260,7 @@
         ctx.restore();
     }
 
-    // FGZ violation indicator â€” centered on screen
+    // FGZ violation indicator — centered on screen
     function drawFGZViolation() {
         if (!fgzViolation) return;
         const alpha = Math.min(1, fgzViolation.timer / 400);
@@ -1294,7 +1295,105 @@
         ctx.restore();
     }
 
-    // Vignette overlay â€” darkens edges for cinematic focus
+    // Stone staging display � shows each team's 8 stones in the upper corners
+    // Red stones: top-left, Yellow stones: top-right
+    // 2 columns � 4 rows, ordered by throw number
+    function drawStagedStones() {
+        const stoneR = 8;       // mini stone radius in pixels
+        const padX = 14;        // padding from canvas edge
+        const padY = 14;        // padding from top
+        const gapX = stoneR * 2.6;  // horizontal gap between columns
+        const gapY = stoneR * 2.6;  // vertical gap between rows
+
+        // Gather thrown stones per team in throw order
+        const redStones = gameState.stones.filter(s => s.team === TEAMS.RED);
+        const yellowStones = gameState.stones.filter(s => s.team === TEAMS.YELLOW);
+
+        for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
+            const isRed = teamIdx === 0;
+            const teamStones = isRed ? redStones : yellowStones;
+            const thrown = isRed ? gameState.redThrown : gameState.yellowThrown;
+            const baseColor = isRed ? '#e53935' : '#fdd835';
+            const darkColor = isRed ? '#b71c1c' : '#f9a825';
+            const lightColor = isRed ? '#ef5350' : '#ffee58';
+
+            // Position: red on left, yellow on right
+            const anchorX = isRed ? padX + stoneR : canvas.width - padX - stoneR - gapX;
+
+            for (let i = 0; i < 8; i++) {
+                const col = i % 2;
+                const row = Math.floor(i / 2);
+                const cx = anchorX + col * gapX;
+                const cy = padY + stoneR + row * gapY;
+
+                const hasBeenThrown = i < thrown;
+                const stoneObj = teamStones[i]; // may be undefined if not thrown yet
+                const isActive = stoneObj ? stoneObj.active : false;
+
+                ctx.save();
+
+                if (!hasBeenThrown) {
+                    // Unthrown: dim outline only
+                    ctx.globalAlpha = 0.25;
+                    ctx.strokeStyle = baseColor;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, stoneR, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // Throw number
+                    ctx.fillStyle = baseColor;
+                    ctx.font = `bold ${stoneR * 0.9}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(i + 1, cx, cy + 0.5);
+                } else {
+                    // Thrown stone
+                    ctx.globalAlpha = isActive ? 0.85 : 0.4;
+
+                    // Shadow
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                    ctx.beginPath();
+                    ctx.arc(cx + 1, cy + 1, stoneR, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Body gradient
+                    const grad = ctx.createRadialGradient(cx - stoneR * 0.2, cy - stoneR * 0.2, stoneR * 0.1, cx, cy, stoneR);
+                    grad.addColorStop(0, lightColor);
+                    grad.addColorStop(0.6, baseColor);
+                    grad.addColorStop(1, darkColor);
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, stoneR, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Edge
+                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, stoneR - 0.5, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // X marker if stone is out of play
+                    if (!isActive) {
+                        ctx.globalAlpha = 0.7;
+                        ctx.strokeStyle = '#fff';
+                        ctx.lineWidth = 2;
+                        const xSize = stoneR * 0.55;
+                        ctx.beginPath();
+                        ctx.moveTo(cx - xSize, cy - xSize);
+                        ctx.lineTo(cx + xSize, cy + xSize);
+                        ctx.moveTo(cx + xSize, cy - xSize);
+                        ctx.lineTo(cx - xSize, cy + xSize);
+                        ctx.stroke();
+                    }
+                }
+
+                ctx.restore();
+            }
+        }
+    }
+    // Vignette overlay — darkens edges for cinematic focus
     function drawVignette() {
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
@@ -1333,7 +1432,7 @@
                 deactivateStone(stone, true);
             }
 
-            // Side wall â€” stone touching the boards is out of play (instant removal)
+            // Side wall — stone touching the boards is out of play (instant removal)
             if (Math.abs(stone.x) > halfW - STONE_R) {
                 deactivateStone(stone, true);
             }
@@ -1367,7 +1466,7 @@
     });
 
     document.getElementById('aim-slider').addEventListener('input', (e) => {
-        document.getElementById('aim-value').textContent = parseFloat(e.target.value).toFixed(1) + 'Â°';
+        document.getElementById('aim-value').textContent = parseFloat(e.target.value).toFixed(1) + '°';
     });
 
     document.getElementById('weight-slider').addEventListener('input', (e) => {
