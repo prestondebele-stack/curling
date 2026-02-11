@@ -1533,6 +1533,26 @@
     }
 
     // --------------------------------------------------------
+    // SETTINGS TOGGLE
+    // --------------------------------------------------------
+    const settingsToggle = document.getElementById('settings-toggle');
+    const settingsDropdown = document.getElementById('settings-dropdown');
+
+    settingsToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = settingsDropdown.classList.toggle('open');
+        settingsToggle.classList.toggle('active', isOpen);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!settingsDropdown.contains(e.target) && e.target !== settingsToggle) {
+            settingsDropdown.classList.remove('open');
+            settingsToggle.classList.remove('active');
+        }
+    });
+
+    // --------------------------------------------------------
     // MODE & DIFFICULTY BUTTONS
     // --------------------------------------------------------
     document.getElementById('mode-1p').addEventListener('click', () => {
@@ -1544,6 +1564,8 @@
         if (isBotTurn() && gameState.phase === 'aiming') {
             triggerBotTurn();
         }
+        settingsDropdown.classList.remove('open');
+        settingsToggle.classList.remove('active');
     });
 
     document.getElementById('mode-2p').addEventListener('click', () => {
@@ -1555,6 +1577,8 @@
         if (gameState.phase === 'aiming') {
             document.getElementById('throw-btn').disabled = false;
         }
+        settingsDropdown.classList.remove('open');
+        settingsToggle.classList.remove('active');
     });
 
     document.querySelectorAll('.diff-btn').forEach(btn => {
@@ -1563,6 +1587,8 @@
             btn.classList.add('active');
             const level = btn.id.replace('diff-', '');
             CurlingBot.setDifficulty(level);
+            settingsDropdown.classList.remove('open');
+            settingsToggle.classList.remove('active');
         });
     });
 

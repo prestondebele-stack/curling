@@ -51,7 +51,64 @@ html, body {
 }
 
 /* ================================================
-   MODE & DIFFICULTY SELECTORS
+   SETTINGS TOGGLE & DROPDOWN
+   ================================================ */
+#settings-wrapper {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+}
+
+#settings-toggle {
+    width: 34px;
+    height: 34px;
+    font-size: 18px;
+    line-height: 1;
+    background: #222;
+    color: #999;
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#settings-toggle:hover { background: #333; color: #ddd; }
+#settings-toggle.active {
+    background: #2a4a7a; color: #fff; border-color: #5c9ae6;
+}
+
+#settings-dropdown {
+    display: none;
+    position: absolute;
+    top: 40px;
+    right: 0;
+    background: rgba(20, 20, 45, 0.97);
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px;
+    z-index: 100;
+    min-width: 200px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    animation: settingsFadeIn 0.15s ease-out;
+}
+
+#settings-dropdown.open {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+@keyframes settingsFadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================================================
+   MODE & DIFFICULTY SELECTORS (inside dropdown)
    ================================================ */
 #mode-selector {
     display: flex;
