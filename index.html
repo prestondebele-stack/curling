@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <title>Capital Curling Club</title>
 
     <!-- PWA -->
@@ -16,11 +18,13 @@
 
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="game-container">
         <canvas id="curling-canvas"></canvas>
         <div id="ui-overlay">
             <div id="settings-wrapper">
+                <span id="settings-label">Choose Opponent Settings</span>
                 <button id="settings-toggle" title="Game Settings">&#9881;</button>
                 <div id="settings-dropdown">
                     <div id="mode-selector">
@@ -113,8 +117,9 @@
     <script>
         // Register service worker for PWA
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(() => {});
+            navigator.serviceWorker.register('sw.js').catch(() => { });
         }
     </script>
 </body>
+
 </html>
