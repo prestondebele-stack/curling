@@ -1294,106 +1294,113 @@
 
         ctx.restore();
     }
+// Stone staging display â€” shows each team's 8 stones on the ice
+// Red stones: top-left corner, Yellow stones: top-right corner
+// 2 columns Ã— 4 rows, ordered by throw number
+function drawStagedStones() {
+    const halfW = CurlingPhysics.SHEET.width / 2;
+    const stoneSize = STONE_R * 0.7; // slightly smaller than real stones
 
-    // Stone staging display — shows each team's 8 stones in the upper corners
-    // Red stones: top-left, Yellow stones: top-right
-    // 2 columns × 4 rows, ordered by throw number
-    function drawStagedStones() {
-        const stoneR = 8;       // mini stone radius in pixels
-        const padX = 14;        // padding from canvas edge
-        const padY = 14;        // padding from top
-        const gapX = stoneR * 2.6;  // horizontal gap between columns
-        const gapY = stoneR * 2.6;  // vertical gap between rows
+    // World-space layout: place stones just past the far back line
+    const startY = P.farBackLine + STONE_R * 2.5; // just above back line in view
+    const gapX = STONE_R * 2.8;
+    const gapY = STONE_R * 2.8;
 
-        // Gather thrown stones per team in throw order
-        const redStones = gameState.stones.filter(s => s.team === TEAMS.RED);
-        const yellowStones = gameState.stones.filter(s => s.team === TEAMS.YELLOW);
+    // Gather thrown stones per team in throw order
+    const redStones = gameState.stones.filter(s => s.team === TEAMS.RED);
+    const yellowStones = gameState.stones.filter(s => s.team === TEAMS.YELLOW);
 
-        for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
-            const isRed = teamIdx === 0;
-            const teamStones = isRed ? redStones : yellowStones;
-            const thrown = isRed ? gameState.redThrown : gameState.yellowThrown;
-            const baseColor = isRed ? '#e53935' : '#fdd835';
-            const darkColor = isRed ? '#b71c1c' : '#f9a825';
-            const lightColor = isRed ? '#ef5350' : '#ffee58';
+    for (let teamIdx = 0; teamIdx < 2; teamIdx++) {
+        const isRed = teamIdx === 0;
+        const teamStones = isRed ? redStones : yellowStones;
+        const thrown = isRed ? gameState.redThrown : gameState.yellowThrown;
+        const baseColor = isRed ? '#e53935' : '#fdd835';
+        const darkColor = isRed ? '#b71c1c' : '#f9a825';
+        const lightColor = isRed ? '#ef5350' : '#ffee58';
 
-            // Position: red on left, yellow on right
-            const anchorX = isRed ? padX + stoneR : canvas.width - padX - stoneR - gapX;
+        // World x anchor: red on left side, yellow on right side
+        const anchorX = isRed
+            ? -halfW + STONE_R * 2.5
+            : halfW - STONE_R * 2.5 - gapX;
 
-            for (let i = 0; i < 8; i++) {
-                const col = i % 2;
-                const row = Math.floor(i / 2);
-                const cx = anchorX + col * gapX;
-                const cy = padY + stoneR + row * gapY;
+        for (let i = 0; i < 8; i++) {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const worldX = anchorX + col * gapX;
+            const worldY = startY + row * gapY;
 
-                const hasBeenThrown = i < thrown;
-                const stoneObj = teamStones[i]; // may be undefined if not thrown yet
-                const isActive = stoneObj ? stoneObj.active : false;
+            // Convert to canvas coordinates
+            const cx = toCanvasX(worldX);
+            const cy = toCanvasY(worldY);
+            const r = toCanvasLen(stoneSize);
 
-                ctx.save();
+            const hasBeenThrown = i < thrown;
+            const stoneObj = teamStones[i];
+            const isActive = stoneObj ? stoneObj.active : false;
 
-                if (!hasBeenThrown) {
-                    // Unthrown: dim outline only
-                    ctx.globalAlpha = 0.25;
-                    ctx.strokeStyle = baseColor;
-                    ctx.lineWidth = 1.5;
+            ctx.save();
+
+            if (!hasBeenThrown) {
+                // Unthrown: dim outline only
+                ctx.globalAlpha = 0.3;
+                ctx.strokeStyle = baseColor;
+                ctx.lineWidth = Math.max(1, r * 0.12);
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Throw number
+                ctx.fillStyle = baseColor;
+                ctx.font = `bold ${Math.max(8, r * 0.8)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(i + 1, cx, cy + 0.5);
+            } else {
+                // Thrown stone
+                ctx.globalAlpha = isActive ? 0.85 : 0.4;
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                ctx.beginPath();
+                ctx.arc(cx + 1, cy + 1, r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Body gradient
+                const grad = ctx.createRadialGradient(cx - r * 0.2, cy - r * 0.2, r * 0.1, cx, cy, r);
+                grad.addColorStop(0, lightColor);
+                grad.addColorStop(0.6, baseColor);
+                grad.addColorStop(1, darkColor);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Edge highlight
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = Math.max(0.5, r * 0.06);
+                ctx.beginPath();
+                ctx.arc(cx, cy, r - 0.5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // X marker if stone is out of play
+                if (!isActive) {
+                    ctx.globalAlpha = 0.7;
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = Math.max(1.5, r * 0.15);
+                    const xSize = r * 0.55;
                     ctx.beginPath();
-                    ctx.arc(cx, cy, stoneR, 0, Math.PI * 2);
+                    ctx.moveTo(cx - xSize, cy - xSize);
+                    ctx.lineTo(cx + xSize, cy + xSize);
+                    ctx.moveTo(cx + xSize, cy - xSize);
+                    ctx.lineTo(cx - xSize, cy + xSize);
                     ctx.stroke();
-
-                    // Throw number
-                    ctx.fillStyle = baseColor;
-                    ctx.font = `bold ${stoneR * 0.9}px sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(i + 1, cx, cy + 0.5);
-                } else {
-                    // Thrown stone
-                    ctx.globalAlpha = isActive ? 0.85 : 0.4;
-
-                    // Shadow
-                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-                    ctx.beginPath();
-                    ctx.arc(cx + 1, cy + 1, stoneR, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Body gradient
-                    const grad = ctx.createRadialGradient(cx - stoneR * 0.2, cy - stoneR * 0.2, stoneR * 0.1, cx, cy, stoneR);
-                    grad.addColorStop(0, lightColor);
-                    grad.addColorStop(0.6, baseColor);
-                    grad.addColorStop(1, darkColor);
-                    ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, stoneR, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Edge
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, stoneR - 0.5, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    // X marker if stone is out of play
-                    if (!isActive) {
-                        ctx.globalAlpha = 0.7;
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 2;
-                        const xSize = stoneR * 0.55;
-                        ctx.beginPath();
-                        ctx.moveTo(cx - xSize, cy - xSize);
-                        ctx.lineTo(cx + xSize, cy + xSize);
-                        ctx.moveTo(cx + xSize, cy - xSize);
-                        ctx.lineTo(cx - xSize, cy + xSize);
-                        ctx.stroke();
-                    }
                 }
-
-                ctx.restore();
             }
+
+            ctx.restore();
         }
     }
-    // Vignette overlay â€” darkens edges for cinematic focus
+}
     function drawVignette() {
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
