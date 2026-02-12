@@ -48,6 +48,40 @@ const CurlingBot = (() => {
         return Math.max(min, Math.min(max, val));
     }
 
+    // Check if any friendly (bot) stone sits behind a target stone,
+    // meaning a hit on the target would likely knock it into our own stone.
+    // "Behind" = further from the hog line (higher y) and in a similar
+    // lateral lane (within ~2 stone diameters sideways).
+    function hasFriendlyBehind(target, board) {
+        const SR = CurlingPhysics.STONE.radius;
+        const dangerRadius = SR * 4; // lateral danger zone (~2 stone widths)
+        const dangerDepth = SR * 12; // how far behind to check (~1.7m)
+        for (const s of board.botStones) {
+            // "Behind" means the friendly stone is further up-ice (higher y)
+            const dy = s.y - target.y;
+            if (dy > 0 && dy < dangerDepth) {
+                // Check lateral proximity — is it in the knock-on path?
+                const dx = Math.abs(s.x - target.x);
+                if (dx < dangerRadius) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // Find the best opponent stone to hit that does NOT have a friendly
+    // stone sitting behind it. Returns null if all targets have collateral risk.
+    function findSafeTarget(board) {
+        const oppInHouse = board.inHouseSorted.filter(s => s.team === 'red');
+        for (const opp of oppInHouse) {
+            if (!hasFriendlyBehind(opp.stone, board)) {
+                return opp.stone;
+            }
+        }
+        return null; // all targets have friendly stones behind them
+    }
+
     // --------------------------------------------------------
     // BOARD EVALUATION
     // --------------------------------------------------------
@@ -130,6 +164,15 @@ const CurlingBot = (() => {
         // Has hammer?
         const hasHammer = gs.hammer === 'yellow';
 
+        // Game-end awareness
+        const currentEnd = gs.currentEnd;
+        const totalEnds = gs.totalEnds;
+        const endsRemaining = totalEnds - currentEnd;
+        const isEarlyGame = currentEnd <= Math.floor(totalEnds * 0.4);   // ends 1-4 in 10-end game
+        const isMidGame = !isEarlyGame && currentEnd <= Math.floor(totalEnds * 0.7); // ends 5-7
+        const isLateGame = currentEnd > Math.floor(totalEnds * 0.7);     // ends 8-10
+        const isDesperateTrailing = scoreDiff < -3 && endsRemaining <= 2;
+
         return {
             activeStones,
             botStones,
@@ -152,6 +195,13 @@ const CurlingBot = (() => {
             teeX,
             teeY,
             totalThrown,
+            currentEnd,
+            totalEnds,
+            endsRemaining,
+            isEarlyGame,
+            isMidGame,
+            isLateGame,
+            isDesperateTrailing,
         };
     }
 
@@ -172,37 +222,50 @@ const CurlingBot = (() => {
         const P = CurlingPhysics.POSITIONS;
         const H = CurlingPhysics.HOUSE;
 
-        // Score modifier: if behind, play more aggressively
+        // Score modifier: if way behind, play more aggressively
         const aggressive = board.scoreDiff < -2;
+
+        // Game-phase modifiers
+        const preferConservative = board.isEarlyGame && board.scoreDiff >= 0;
+        const aggressiveLate = board.isLateGame && board.scoreDiff < 0;
 
         // EARLY STONES (1-2): Center guards
         if (n <= 2) {
-            // Place center guards in front of the house
             if (!board.centerBlocked || board.centerGuards.length < 2) {
                 return makeCenterGuard(board, n);
             }
-            // If center already guarded, draw behind guards
             return makeDrawBehindGuard(board);
         }
 
-        // MID STONES (3-4): Come-arounds behind guards, or replace removed guards
+        // MID STONES (3-4): Come-arounds, replace guards, freeze option
         if (n <= 4) {
             if (board.centerGuards.filter(s => s.team === 'yellow').length === 0 && !board.fgzActive) {
                 // Our guards were removed and FGZ is off — replace them
                 return makeCenterGuard(board, n);
             }
-            // If opponent has shot stone, try to draw around guard
             if (board.shotTeam === 'red') {
+                // Freeze against their shot stone if we have a guard protecting us
+                if (board.botGuards.length > 0 && Math.random() < 0.4) {
+                    return makeFreeze(board);
+                }
                 return makeDrawBehindGuard(board);
             }
-            // We have shot — add another stone to the house
             return makeDrawToHouse(board);
         }
 
-        // LATE STONES (5-6): Takeout if opponent has shot, guard own shot
+        // LATE STONES (5-6): Controlled responses to threats
         if (n <= 6) {
-            if (board.oppScoring > 0) {
-                return makeTakeout(board);
+            if (board.oppScoring >= 2) {
+                return makeTakeout(board); // major threat: full takeout
+            }
+            if (board.oppScoring === 1) {
+                if (preferConservative) {
+                    return makeTap(board); // early game: gentle nudge
+                }
+                if (aggressiveLate) {
+                    return makeTakeout(board); // late game trailing: remove it
+                }
+                return makeHitAndRoll(board); // default: hit and stay in house
             }
             if (board.botScoring > 0 && aggressive) {
                 return makeGuardOwnStone(board);
@@ -210,17 +273,26 @@ const CurlingBot = (() => {
             return makeDrawToHouse(board);
         }
 
-        // FINAL STONES (7-8): Protect or last-ditch takeout
+        // FINAL STONES (7-8): Protect or respond to threats
         if (board.oppScoring >= 2) {
             return makeTakeout(board);
         }
-        if (board.oppScoring > 0) {
-            return makeTakeout(board); // opponent scoring 1, still worth hitting
+        if (board.oppScoring === 1) {
+            if (board.isDesperateTrailing) {
+                return makeTakeout(board); // desperate: don't risk finesse
+            }
+            return makeHitAndRoll(board); // hit and roll preferred over hard takeout
         }
         if (board.botScoring > 0) {
-            return makeDrawToHouse(board); // add insurance stone
+            if (board.botScoring >= 2) {
+                return makeGuardOwnStone(board); // protect multi-point score
+            }
+            if (board.oppInHouse.length > 0) {
+                return makeFreeze(board); // freeze for insurance
+            }
+            return makeDrawToHouse(board);
         }
-        return makeDrawToHouse(board); // nothing to hit — draw for a point
+        return makeDrawToHouse(board);
     }
 
     // --- WITH HAMMER (offensive — keep center open, draw for multiple) ---
@@ -231,42 +303,68 @@ const CurlingBot = (() => {
         // If well ahead, play to blank the end (keep hammer)
         const playBlank = board.scoreDiff >= 3 && n >= 6;
 
-        // EARLY STONES (1-2): Corner guards to keep center open
+        // Game-phase modifiers
+        const preferDraws = board.isEarlyGame && board.scoreDiff >= 0;
+        const aggressiveLate = board.isLateGame && board.scoreDiff < 0;
+
+        // EARLY STONES (1-2): Keep it simple, open play
         if (n <= 2) {
-            if (board.centerGuards.filter(s => s.team === 'red').length > 0 && !board.fgzActive) {
-                // Opponent put up center guard — peel it
-                return makePeel(board);
+            const oppCenterGuards = board.centerGuards.filter(s => s.team === 'red');
+            if (oppCenterGuards.length > 0 && !board.fgzActive) {
+                // FGZ is OFF — can remove guard
+                if (preferDraws) {
+                    return makeHitAndRoll(board); // early game: gentle removal
+                }
+                if (aggressiveLate) {
+                    return makePeel(board); // late game trailing: peel hard
+                }
+                return makeHitAndRoll(board); // default: remove guard, stay in play
+            }
+            if (preferDraws) {
+                return makeDrawToHouse(board); // early game: draw for position
             }
             return makeCornerGuard(board);
         }
 
-        // MID STONES (3-4): Peel opponent center guards, draw behind own guards
+        // MID STONES (3-4): Develop position, handle opponent guards
         if (n <= 4) {
-            if (board.centerGuards.filter(s => s.team === 'red').length > 0 && !board.fgzActive) {
-                return makePeel(board);
+            const oppCenterGuards = board.centerGuards.filter(s => s.team === 'red');
+            if (oppCenterGuards.length > 0 && !board.fgzActive) {
+                if (aggressiveLate) {
+                    return makePeel(board); // late game: remove it hard
+                }
+                return makeHitAndRoll(board); // stay in play after removing guard
             }
             if (board.oppScoring > 0) {
-                return makeTakeout(board);
+                if (board.oppScoring === 1 && !aggressiveLate) {
+                    return makeHitAndRoll(board); // gentle response to minor threat
+                }
+                return makeTakeout(board); // opponent scoring 2+: takeout
             }
             return makeDrawToHouse(board);
         }
 
-        // LATE STONES (5-6): Hit-and-stay, position scoring stones
+        // LATE STONES (5-6): Position scoring stones, remove threats
         if (n <= 6) {
-            if (board.oppScoring > 0) {
-                return makeTakeout(board);
+            if (board.oppScoring >= 2) {
+                return makeTakeout(board); // serious threat: full takeout
+            }
+            if (board.oppScoring === 1) {
+                return makeHitAndRoll(board); // remove AND stay in house
             }
             return makeDrawToHouse(board);
         }
 
-        // FINAL STONES (7-8): Draw for 2+ or blank end
+        // FINAL STONES (7-8): Close out the end
         if (playBlank) {
             return makeBlank(board);
         }
         if (board.oppScoring > board.botScoring) {
+            if (board.oppScoring === 1 && board.botScoring === 0) {
+                return makeHitAndRoll(board); // trade positions
+            }
             return makeTakeout(board);
         }
-        // Draw to score — aim for button area
         return makeDrawToButton(board);
     }
 
@@ -385,32 +483,45 @@ const CurlingBot = (() => {
     }
 
     function makeTakeout(board) {
-        // Hit the opponent's best stone (closest to button)
+        // Hit an opponent stone, preferring targets that won't knock into our own stones
         const P = CurlingPhysics.POSITIONS;
         const oppInHouse = board.inHouseSorted.filter(s => s.team === 'red');
         if (oppInHouse.length > 0) {
-            const target = oppInHouse[0].stone;
-            return {
-                targetX: target.x,
-                targetY: target.y,
-                weight: rand(WEIGHT.takeout.min, WEIGHT.takeout.max),
-                spin: target.x > 0 ? -1 : 1,
-                spinAmount: rand(2.0, 3.0),
-                description: 'Takeout',
-            };
+            // Try to find a safe target first (no friendly behind)
+            const safeTarget = findSafeTarget(board);
+            if (safeTarget) {
+                return {
+                    targetX: safeTarget.x,
+                    targetY: safeTarget.y,
+                    weight: rand(WEIGHT.takeout.min, WEIGHT.takeout.max),
+                    spin: safeTarget.x > 0 ? -1 : 1,
+                    spinAmount: rand(2.0, 3.0),
+                    description: 'Takeout',
+                };
+            }
+            // All targets have friendly stones behind them —
+            // fall back to a freeze or draw instead of risking collateral
+            if (board.botGuards.length > 0) {
+                return makeFreeze(board);
+            }
+            return makeDrawToHouse(board);
         }
 
         // No opponent stone in house — only hit guards if they're protecting house stones
         if (board.oppGuards.length > 0 && board.oppInHouse.length > 0) {
             const guard = board.oppGuards[0];
-            return {
-                targetX: guard.x,
-                targetY: guard.y,
-                weight: rand(WEIGHT.takeout.min, WEIGHT.takeout.max),
-                spin: guard.x > 0 ? -1 : 1,
-                spinAmount: rand(2.0, 3.0),
-                description: 'Takeout Guard',
-            };
+            // Check if our own stones are behind this guard too
+            if (!hasFriendlyBehind(guard, board)) {
+                return {
+                    targetX: guard.x,
+                    targetY: guard.y,
+                    weight: rand(WEIGHT.takeout.min, WEIGHT.takeout.max),
+                    spin: guard.x > 0 ? -1 : 1,
+                    spinAmount: rand(2.0, 3.0),
+                    description: 'Takeout Guard',
+                };
+            }
+            return makeDrawToHouse(board);
         }
 
         // Nothing to hit — draw instead
@@ -418,18 +529,25 @@ const CurlingBot = (() => {
     }
 
     function makePeel(board) {
-        // Hit and remove opponent's center guard with lots of weight
+        // Hit and remove opponent's center guard with lots of weight.
+        // Check for friendly stones behind the guard first.
         const centerOppGuards = board.centerGuards.filter(s => s.team === 'red');
         if (centerOppGuards.length > 0) {
-            const target = centerOppGuards[0];
-            return {
-                targetX: target.x,
-                targetY: target.y,
-                weight: rand(WEIGHT.peel.min, WEIGHT.peel.max),
-                spin: target.x > 0 ? -1 : 1,
-                spinAmount: rand(2.0, 2.5),
-                description: 'Peel',
-            };
+            // Find a center guard that doesn't have our stone behind it
+            for (const target of centerOppGuards) {
+                if (!hasFriendlyBehind(target, board)) {
+                    return {
+                        targetX: target.x,
+                        targetY: target.y,
+                        weight: rand(WEIGHT.peel.min, WEIGHT.peel.max),
+                        spin: target.x > 0 ? -1 : 1,
+                        spinAmount: rand(2.0, 2.5),
+                        description: 'Peel',
+                    };
+                }
+            }
+            // All center guards have friendly stones behind — draw instead
+            return makeDrawToHouse(board);
         }
         // Nothing to peel — draw instead
         return makeDrawToHouse(board);
@@ -452,6 +570,79 @@ const CurlingBot = (() => {
             spinAmount: rand(2.0, 2.5),
             description: 'Throw-Through (Blank)',
         };
+    }
+
+    function makeHitAndRoll(board) {
+        // Hit opponent stone with control weight so our stone
+        // rolls to stay in the house after contact.
+        // Avoids targets with friendly stones behind them.
+        const oppInHouse = board.inHouseSorted.filter(s => s.team === 'red');
+        if (oppInHouse.length > 0) {
+            // Prefer a safe target (no friendly behind)
+            const safeTarget = findSafeTarget(board);
+            const target = safeTarget || null;
+            if (!target) {
+                // All targets have friendly stones behind — draw instead
+                return makeDrawToHouse(board);
+            }
+            // Offset aim slightly so our stone deflects toward center after contact
+            const offsetDir = target.x > 0 ? -1 : 1;
+            const offset = offsetDir * rand(0.04, 0.08);
+            return {
+                targetX: target.x + offset,
+                targetY: target.y,
+                weight: rand(WEIGHT.control.min, WEIGHT.control.max),
+                spin: target.x > 0 ? -1 : 1,
+                spinAmount: rand(2.0, 3.0),
+                description: 'Hit & Roll',
+            };
+        }
+        return makeDrawToHouse(board);
+    }
+
+    function makeFreeze(board) {
+        // Draw to rest right up against an opponent's stone in the house,
+        // making it hard to remove without sacrificing their stone
+        const SR = CurlingPhysics.STONE.radius;
+        const oppInHouse = board.inHouseSorted.filter(s => s.team === 'red');
+        if (oppInHouse.length > 0) {
+            const target = oppInHouse[0].stone;
+            const targetX = target.x + rand(-0.05, 0.05);
+            const targetY = target.y - (SR * 2 + rand(0.0, 0.05));
+            return {
+                targetX,
+                targetY,
+                weight: rand(WEIGHT.draw.min, WEIGHT.draw.max),
+                spin: targetX > 0 ? -1 : 1,
+                spinAmount: rand(2.5, 3.5),
+                description: 'Freeze',
+            };
+        }
+        return makeDrawToButton(board);
+    }
+
+    function makeTap(board) {
+        // Gentle control-weight hit that nudges opponent stone back
+        // without blasting it out — both stones likely stay in play.
+        // Avoids targets with friendly stones behind them.
+        const oppInHouse = board.inHouseSorted.filter(s => s.team === 'red');
+        if (oppInHouse.length > 0) {
+            const safeTarget = findSafeTarget(board);
+            const target = safeTarget || null;
+            if (!target) {
+                // All targets have friendly stones behind — draw instead
+                return makeDrawToHouse(board);
+            }
+            return {
+                targetX: target.x,
+                targetY: target.y,
+                weight: rand(WEIGHT.control.min, WEIGHT.control.min + 5),
+                spin: target.x > 0 ? -1 : 1,
+                spinAmount: rand(2.0, 3.0),
+                description: 'Tap',
+            };
+        }
+        return makeDrawToHouse(board);
     }
 
     // --------------------------------------------------------

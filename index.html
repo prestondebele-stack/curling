@@ -30,6 +30,7 @@
                     <div id="mode-selector">
                         <button id="mode-1p" class="mode-btn active">1 Player</button>
                         <button id="mode-2p" class="mode-btn">2 Player</button>
+                        <button id="mode-online" class="mode-btn">Online</button>
                     </div>
                     <div id="difficulty-selector">
                         <button id="diff-easy" class="diff-btn">Easy</button>
@@ -109,10 +110,55 @@
             <h1 id="winner-text">Game Over</h1>
             <div id="final-scores"></div>
             <button id="new-game-btn">New Game</button>
+            <button id="rematch-btn" style="display:none;">Rematch</button>
+            <button id="leave-btn" style="display:none;">Leave</button>
         </div>
+        <div id="lobby-screen" style="display:none;">
+            <div id="lobby-content">
+                <h2>Online Multiplayer</h2>
+                <div id="lobby-menu">
+                    <button id="lobby-create" class="lobby-btn">Create Game</button>
+                    <button id="lobby-join" class="lobby-btn">Join Game</button>
+                    <button id="lobby-queue" class="lobby-btn">Quick Match</button>
+                    <button id="lobby-back" class="lobby-btn secondary">Back</button>
+                </div>
+                <div id="lobby-create-panel" style="display:none;">
+                    <p>Share this code with your opponent:</p>
+                    <div id="room-code-display">----</div>
+                    <p class="lobby-status">Waiting for opponent...</p>
+                    <button id="lobby-cancel-create" class="lobby-btn secondary">Cancel</button>
+                </div>
+                <div id="lobby-join-panel" style="display:none;">
+                    <p>Enter room code:</p>
+                    <input type="text" id="room-code-input" maxlength="4" placeholder="ABCD" autocomplete="off">
+                    <button id="lobby-join-submit" class="lobby-btn">Join</button>
+                    <p id="join-error" class="lobby-error" style="display:none;"></p>
+                    <button id="lobby-cancel-join" class="lobby-btn secondary">Cancel</button>
+                </div>
+                <div id="lobby-queue-panel" style="display:none;">
+                    <div class="lobby-spinner"></div>
+                    <p class="lobby-status">Searching for opponent...</p>
+                    <button id="lobby-cancel-queue" class="lobby-btn secondary">Cancel</button>
+                </div>
+                <div id="lobby-starting-panel" style="display:none;">
+                    <h3>Opponent Found!</h3>
+                    <p id="team-assignment">You are <span id="your-team-label">Red</span></p>
+                    <p class="lobby-status">Game starting...</p>
+                </div>
+            </div>
+        </div>
+        <div id="disconnect-overlay" style="display:none;">
+            <div class="disconnect-content">
+                <p>Opponent disconnected</p>
+                <p class="disconnect-sub">Waiting for reconnection...</p>
+                <button id="disconnect-leave" class="lobby-btn secondary">Leave Game</button>
+            </div>
+        </div>
+        <div id="online-team-badge" style="display:none;"></div>
     </div>
     <script src="physics.js"></script>
     <script src="bot.js"></script>
+    <script src="network.js"></script>
     <script src="game.js"></script>
     <script>
         // Register service worker for PWA
